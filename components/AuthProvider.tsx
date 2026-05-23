@@ -15,6 +15,7 @@ import {
   completeGoogleRedirectSignIn,
   getAuthErrorMessage,
   getUserProfile,
+  preloadGoogleIdentityServices,
   saveUserProfile,
   signInWithEmailPassword,
   signInWithGoogle as signInWithGoogleProvider,
@@ -52,6 +53,8 @@ export function FirebaseAuthProvider({ children }: { children: ReactNode }) {
     }
 
     let active = true;
+    preloadGoogleIdentityServices();
+
     completeGoogleRedirectSignIn()
       .then((userProfile) => {
         if (active && userProfile) {
