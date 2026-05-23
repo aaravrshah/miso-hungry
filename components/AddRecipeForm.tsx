@@ -162,7 +162,7 @@ function parseIngredientLine(line: string): Ingredient {
   const withoutNote = (noteMatch?.[1] ?? trimmedLine).trim();
   const note = noteMatch?.[2]?.trim();
   const quantityMatch = withoutNote.match(
-    /^((?:\d+\s+)?\d+\/\d+|\d+(?:\.\d+)?|[\u00bc\u00bd\u00be\u2153\u2154\u215b\u215c\u215d\u215e]|a\s+few|to\s+taste|handfuls?|pinches?|dashes?|splashes?|bunches?|cloves?|knobs?|sticks?|packets?|scoops?)\s+/i,
+    /^((?:\d+\s+)?\d+\/\d+|\d+(?:\.\d+)?|[\u00bc\u00bd\u00be\u2153\u2154\u215b\u215c\u215d\u215e]|a\s+few|few|to\s+taste|(?:a|one)\s+(?:handfuls?|pinches?|dashes?|splashes?|bunches?|cloves?|knobs?|sticks?|packets?|scoops?)|handfuls?|pinches?|dashes?|splashes?|bunches?|cloves?|knobs?|sticks?|packets?|scoops?)\s+/i,
   );
   const quantity = quantityMatch?.[1] ?? "";
   let remaining = quantityMatch ? withoutNote.slice(quantityMatch[0].length).trim() : withoutNote;
@@ -178,6 +178,8 @@ function parseIngredientLine(line: string): Ingredient {
     unit = remaining.slice(0, matchedUnit.length);
     remaining = remaining.slice(matchedUnit.length).trim();
   }
+
+  remaining = remaining.replace(/^of\s+/i, "").trim();
 
   return {
     quantity,

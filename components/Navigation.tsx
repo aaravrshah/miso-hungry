@@ -3,6 +3,7 @@
 import {
   BookOpen,
   ChefHat,
+  GlassWater,
   Home,
   LogOut,
   PackageSearch,
@@ -17,6 +18,7 @@ import { useAuth } from "@/components/AuthProvider";
 const navItems = [
   { href: "/", label: "Home", icon: Home },
   { href: "/recipes", label: "Recipes", icon: BookOpen },
+  { href: "/drinks", label: "Drinks", icon: GlassWater },
   { href: "/friends", label: "Friends", icon: Users },
   { href: "/pantry", label: "Pantry", icon: PackageSearch },
   { href: "/grocery-list", label: "Grocery", icon: ShoppingBasket },
@@ -97,14 +99,14 @@ export function Navigation() {
         aria-label="Primary navigation"
         className="fixed inset-x-0 bottom-0 z-40 border-t border-stone-200 bg-[#fbf5eb]/95 px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 shadow-[0_-10px_30px_rgba(44,36,29,0.08)] backdrop-blur sm:bottom-4 sm:left-1/2 sm:right-auto sm:w-[min(44rem,calc(100%-2rem))] sm:-translate-x-1/2 sm:rounded-2xl sm:border sm:pb-2 lg:hidden"
       >
-        <div className="grid grid-cols-6 gap-1">
+        <div className="flex gap-1 overflow-x-auto pb-1">
           {navItems.map((item) => {
             const active = isActivePath(pathname, item.href);
             const Icon = item.icon;
 
             return (
               <Link
-                className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[0.68rem] font-bold transition ${
+                className={`flex min-h-14 w-16 shrink-0 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[0.68rem] font-bold transition ${
                   active
                     ? "bg-white text-[var(--tomato)] shadow-sm ring-1 ring-stone-200"
                     : "text-stone-500"

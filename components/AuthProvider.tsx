@@ -70,8 +70,6 @@ export function FirebaseAuthProvider({ children }: { children: ReactNode }) {
       });
 
     const unsubscribe = subscribeToAuthState(async (user) => {
-      setError(undefined);
-
       if (!user) {
         if (active) {
           setProfile(undefined);
@@ -83,8 +81,9 @@ export function FirebaseAuthProvider({ children }: { children: ReactNode }) {
       try {
         const userProfile =
           (await getUserProfile(user.uid)) ??
-          (await saveUserProfile(user, user.displayName || user.email || "Aarav"));
+          (await saveUserProfile(user, user.displayName || user.email || "Cook"));
         if (active) {
+          setError(undefined);
           setProfile(userProfile);
           setIsLoading(false);
         }

@@ -141,3 +141,12 @@ export type GroceryList = {
   createdAt?: unknown;
   updatedAt?: unknown;
 };
+
+export type DrinkCabinet = {
+  id: string;
+  userId: string;
+  displayName: string;
+  ingredients: string[];
+  createdAt?: unknown;
+  updatedAt?: unknown;
+};

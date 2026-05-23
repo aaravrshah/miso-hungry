@@ -80,7 +80,7 @@ function shouldUseGoogleIdentityServices() {
     return false;
   }
 
-  return Boolean(googleWebClientId);
+  return Boolean(googleWebClientId) && !shouldUseGoogleRedirect();
 }
 
 function getFirebaseErrorCode(error: unknown) {
@@ -104,12 +104,32 @@ export function getAuthErrorMessage(error: unknown, fallback = "Authentication f
     return "This site URL is not authorized for Firebase Auth. Add the exact domain or local IP you are using on your phone in Firebase Authentication > Settings > Authorized domains.";
   }
 
+  if (code === "auth/popup-blocked") {
+    return "The Google sign-in popup was blocked. On mobile, use the full-page Google redirect flow; on desktop, allow popups for this site.";
+  }
+
+  if (code === "auth/cancelled-popup-request") {
+    return "Google sign in was interrupted by another sign-in attempt. Please try again.";
+  }
+
   if (code === "auth/popup-closed-by-user") {
     return "Google sign in was closed before it finished.";
   }
 
+  if (code === "auth/operation-not-supported-in-this-environment") {
+    return "This browser cannot use the current Google sign-in method. Try Safari/Chrome directly instead of an embedded browser.";
+  }
+
+  if (code === "auth/account-exists-with-different-credential") {
+    return "An account already exists with this email using another sign-in method. Sign in with the original method first, then link Google later.";
+  }
+
+  if (code === "auth/network-request-failed") {
+    return "Google sign in could not reach Firebase. Check your connection and try again.";
+  }
+
   if (error instanceof Error) {
-    return error.message;
+    return code ? `${error.message} (${String(code)})` : error.message;
   }
 
   return fallback;
@@ -151,7 +171,7 @@ function loadGoogleIdentityScript() {
 }
 
 export function preloadGoogleIdentityServices() {
-  if (!googleWebClientId || typeof window === "undefined") {
+  if (!shouldUseGoogleIdentityServices()) {
     return;
   }
 
@@ -256,7 +276,7 @@ async function getOrCreateUserProfile(user: User) {
     return profile;
   }
 
-  return saveUserProfile(user, user.displayName || user.email || "Aarav");
+  return saveUserProfile(user, user.displayName || user.email || "Cook");
 }
 
 export async function signUpWithEmailPassword({
@@ -298,10 +318,6 @@ export async function completeGoogleRedirectSignIn() {
 }
 
 export async function signInWithGoogle() {
-  if (shouldUseGoogleIdentityServices()) {
-    return signInWithGoogleIdentityServices();
-  }
-
   const auth = await getAuthWithLocalPersistence();
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: "select_account" });
@@ -309,6 +325,10 @@ export async function signInWithGoogle() {
   if (shouldUseGoogleRedirect()) {
     await signInWithRedirect(auth, provider);
     return undefined;
+  }
+
+  if (shouldUseGoogleIdentityServices()) {
+    return signInWithGoogleIdentityServices();
   }
 
   const credentials = await signInWithPopup(auth, provider).catch(async (authError) => {
