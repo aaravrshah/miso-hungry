@@ -12,6 +12,8 @@ import {
 import { isFirebaseConfigured, missingFirebaseConfig } from "@/lib/firebase/client";
 import type { SupportedDisplayName, UserProfile } from "@/lib/firebase/schema";
 import {
+  completeGoogleRedirectSignIn,
+  getAuthErrorMessage,
   getUserProfile,
   saveUserProfile,
   signInWithEmailPassword,
@@ -50,6 +52,20 @@ export function FirebaseAuthProvider({ children }: { children: ReactNode }) {
     }
 
     let active = true;
+    completeGoogleRedirectSignIn()
+      .then((userProfile) => {
+        if (active && userProfile) {
+          setProfile(userProfile);
+          setIsLoading(false);
+        }
+      })
+      .catch((authError) => {
+        if (active) {
+          setError(getAuthErrorMessage(authError, "Unable to complete Google sign in."));
+          setIsLoading(false);
+        }
+      });
+
     const unsubscribe = subscribeToAuthState(async (user) => {
       setError(undefined);
 
@@ -71,7 +87,7 @@ export function FirebaseAuthProvider({ children }: { children: ReactNode }) {
         }
       } catch (authError) {
         if (active) {
-          setError(authError instanceof Error ? authError.message : "Unable to load profile.");
+          setError(getAuthErrorMessage(authError, "Unable to load profile."));
           setIsLoading(false);
         }
       }
@@ -91,8 +107,9 @@ export function FirebaseAuthProvider({ children }: { children: ReactNode }) {
       const userProfile = await signInWithEmailPassword(input);
       setProfile(userProfile);
     } catch (authError) {
-      setError(authError instanceof Error ? authError.message : "Unable to sign in.");
-      throw authError;
+      const message = getAuthErrorMessage(authError, "Unable to sign in.");
+      setError(message);
+      throw new Error(message);
     } finally {
       setIsLoading(false);
     }
@@ -106,8 +123,9 @@ export function FirebaseAuthProvider({ children }: { children: ReactNode }) {
       const userProfile = await signInWithGoogleProvider();
       setProfile(userProfile);
     } catch (authError) {
-      setError(authError instanceof Error ? authError.message : "Unable to sign in with Google.");
-      throw authError;
+      const message = getAuthErrorMessage(authError, "Unable to sign in with Google.");
+      setError(message);
+      throw new Error(message);
     } finally {
       setIsLoading(false);
     }
@@ -126,8 +144,9 @@ export function FirebaseAuthProvider({ children }: { children: ReactNode }) {
         const userProfile = await signUpWithEmailPassword(input);
         setProfile(userProfile);
       } catch (authError) {
-        setError(authError instanceof Error ? authError.message : "Unable to create account.");
-        throw authError;
+        const message = getAuthErrorMessage(authError, "Unable to create account.");
+        setError(message);
+        throw new Error(message);
       } finally {
         setIsLoading(false);
       }
@@ -143,7 +162,7 @@ export function FirebaseAuthProvider({ children }: { children: ReactNode }) {
       await signOutUser();
       setProfile(undefined);
     } catch (authError) {
-      setError(authError instanceof Error ? authError.message : "Unable to sign out.");
+      setError(getAuthErrorMessage(authError, "Unable to sign out."));
     } finally {
       setIsLoading(false);
     }

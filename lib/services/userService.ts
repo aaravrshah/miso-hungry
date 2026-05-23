@@ -3,6 +3,7 @@
 import {
   browserLocalPersistence,
   createUserWithEmailAndPassword,
+  getRedirectResult,
   GoogleAuthProvider,
   onAuthStateChanged,
   setPersistence,
@@ -35,19 +36,40 @@ function shouldUseGoogleRedirect() {
   }
 
   const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
-  const isiOS = /iPad|iPhone|iPod/.test(window.navigator.userAgent);
 
-  return isStandalone || isiOS;
+  return isStandalone;
+}
+
+function getFirebaseErrorCode(error: unknown) {
+  return error && typeof error === "object" && "code" in error ? error.code : undefined;
 }
 
 function shouldFallbackToGoogleRedirect(error: unknown) {
-  const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
+  const code = getFirebaseErrorCode(error);
 
   return (
     code === "auth/popup-blocked" ||
     code === "auth/cancelled-popup-request" ||
     code === "auth/operation-not-supported-in-this-environment"
   );
+}
+
+export function getAuthErrorMessage(error: unknown, fallback = "Authentication failed.") {
+  const code = getFirebaseErrorCode(error);
+
+  if (code === "auth/unauthorized-domain") {
+    return "This site URL is not authorized for Firebase Auth. Add the exact domain or local IP you are using on your phone in Firebase Authentication > Settings > Authorized domains.";
+  }
+
+  if (code === "auth/popup-closed-by-user") {
+    return "Google sign in was closed before it finished.";
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return fallback;
 }
 
 export async function getUserProfile(userId: string) {
@@ -86,6 +108,16 @@ export async function saveUserProfile(user: User, displayName: SupportedDisplayN
   return profile;
 }
 
+async function getOrCreateUserProfile(user: User) {
+  const profile = await getUserProfile(user.uid);
+
+  if (profile) {
+    return profile;
+  }
+
+  return saveUserProfile(user, user.displayName || user.email || "Aarav");
+}
+
 export async function signUpWithEmailPassword({
   displayName,
   email,
@@ -110,16 +142,18 @@ export async function signInWithEmailPassword({
 }) {
   const auth = await getAuthWithLocalPersistence();
   const credentials = await signInWithEmailAndPassword(auth, email, password);
-  const profile = await getUserProfile(credentials.user.uid);
+  return getOrCreateUserProfile(credentials.user);
+}
 
-  if (profile) {
-    return profile;
+export async function completeGoogleRedirectSignIn() {
+  const auth = await getAuthWithLocalPersistence();
+  const credentials = await getRedirectResult(auth);
+
+  if (!credentials) {
+    return undefined;
   }
 
-  return saveUserProfile(
-    credentials.user,
-    credentials.user.displayName || credentials.user.email || "Aarav",
-  );
+  return getOrCreateUserProfile(credentials.user);
 }
 
 export async function signInWithGoogle() {
@@ -145,16 +179,7 @@ export async function signInWithGoogle() {
     return undefined;
   }
 
-  const profile = await getUserProfile(credentials.user.uid);
-
-  if (profile) {
-    return profile;
-  }
-
-  return saveUserProfile(
-    credentials.user,
-    credentials.user.displayName || credentials.user.email || "Aarav",
-  );
+  return getOrCreateUserProfile(credentials.user);
 }
 
 export async function signOutUser() {
