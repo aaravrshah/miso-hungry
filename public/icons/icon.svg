@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Miso Hungry icon">
+  <rect width="512" height="512" rx="108" fill="#bc5a43"/>
+  <circle cx="256" cy="256" r="190" fill="#fff8ee" opacity="0.18"/>
+  <path d="M150 282c7 79 54 126 106 126s99-47 106-126H150Z" fill="#fff8ee"/>
+  <path d="M140 268h232c16 0 29 13 29 29v2H111v-2c0-16 13-29 29-29Z" fill="#2c241d" opacity="0.18"/>
+  <path d="M179 189c-23-29 23-47 0-78" fill="none" stroke="#fff8ee" stroke-width="26" stroke-linecap="round"/>
+  <path d="M256 185c-28-35 28-56 0-94" fill="none" stroke="#fff8ee" stroke-width="26" stroke-linecap="round"/>
+  <path d="M333 189c-23-29 23-47 0-78" fill="none" stroke="#fff8ee" stroke-width="26" stroke-linecap="round"/>
+  <path d="M182 292h148" fill="none" stroke="#bc5a43" stroke-width="20" stroke-linecap="round" opacity="0.8"/>
+</svg>
