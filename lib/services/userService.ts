@@ -36,8 +36,9 @@ function shouldUseGoogleRedirect() {
   }
 
   const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
+  const isiOS = /iPad|iPhone|iPod/.test(window.navigator.userAgent);
 
-  return isStandalone;
+  return isStandalone || isiOS;
 }
 
 function getFirebaseErrorCode(error: unknown) {
