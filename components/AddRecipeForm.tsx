@@ -3,6 +3,7 @@
 import { ClipboardCheck, ImagePlus, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import { useAuth } from "@/components/AuthProvider";
 import { StarRating } from "@/components/StarRating";
 import { useRecipes } from "@/components/RecipeStore";
 import {
@@ -36,6 +37,26 @@ const ingredientUnits = [
   "gram",
   "cups",
   "cup",
+  "handfuls",
+  "handful",
+  "pinches",
+  "pinch",
+  "dashes",
+  "dash",
+  "splashes",
+  "splash",
+  "bunches",
+  "bunch",
+  "cloves",
+  "clove",
+  "knobs",
+  "knob",
+  "sticks",
+  "stick",
+  "packets",
+  "packet",
+  "scoops",
+  "scoop",
   "tbsp",
   "tsp",
   "cans",
@@ -141,7 +162,7 @@ function parseIngredientLine(line: string): Ingredient {
   const withoutNote = (noteMatch?.[1] ?? trimmedLine).trim();
   const note = noteMatch?.[2]?.trim();
   const quantityMatch = withoutNote.match(
-    /^((?:\d+\s+)?\d+\/\d+|\d+(?:\.\d+)?|[\u00bc\u00bd\u00be\u2153\u2154\u215b\u215c\u215d\u215e])\s+/,
+    /^((?:\d+\s+)?\d+\/\d+|\d+(?:\.\d+)?|[\u00bc\u00bd\u00be\u2153\u2154\u215b\u215c\u215d\u215e]|a\s+few|to\s+taste|handfuls?|pinches?|dashes?|splashes?|bunches?|cloves?|knobs?|sticks?|packets?|scoops?)\s+/i,
   );
   const quantity = quantityMatch?.[1] ?? "";
   let remaining = quantityMatch ? withoutNote.slice(quantityMatch[0].length).trim() : withoutNote;
@@ -271,6 +292,7 @@ export function AddRecipeForm({
   onSaved,
 }: AddRecipeFormProps) {
   const router = useRouter();
+  const { profile } = useAuth();
   const { addRecipe, categories, updateRecipe } = useRecipes();
   const initialRecipe = recipe ? recipeWithCategoryArrays(recipe) : createBlankRecipe();
   const [coverImageFile, setCoverImageFile] = useState<File | undefined>();
@@ -291,12 +313,34 @@ export function AddRecipeForm({
       : [];
   const parsedDirections = parseDirections(directionsText);
   const detectedTimers = parsedDirections.filter((direction) => direction.timerMinutes);
+  const currentRating =
+    profile?.displayName === "Sophie"
+      ? formRecipe.sophieRating
+      : profile?.displayName === "Aarav"
+        ? formRecipe.aaravRating
+        : formRecipe.averageUserRating;
 
   function updateField<Key extends keyof Recipe>(key: Key, value: Recipe[Key]) {
     setFormRecipe((currentRecipe) => ({
       ...currentRecipe,
       [key]: value,
     }));
+  }
+
+  function updateCurrentUserRating(value: number | undefined) {
+    if (profile?.displayName === "Sophie") {
+      updateField("sophieRating", value);
+      return;
+    }
+
+    if (profile?.displayName === "Aarav") {
+      updateField("aaravRating", value);
+      return;
+    }
+
+    updateField("averageUserRating", value);
+    updateField("ratingCount", typeof value === "number" ? 1 : 0);
+    updateField("ratingTotal", value ?? 0);
   }
 
   function toggleCategory(categoryId: string) {
@@ -502,14 +546,9 @@ export function AddRecipeForm({
               value={formRecipe.servings}
             />
             <RatingField
-              label="Aarav rating"
-              onChange={(value) => updateField("aaravRating", value)}
-              value={formRecipe.aaravRating}
-            />
-            <RatingField
-              label="Sophie rating"
-              onChange={(value) => updateField("sophieRating", value)}
-              value={formRecipe.sophieRating}
+              label="Your rating"
+              onChange={updateCurrentUserRating}
+              value={currentRating}
             />
           </div>
 

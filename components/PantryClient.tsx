@@ -22,6 +22,7 @@ import type {
 import type { Ingredient, Recipe } from "@/lib/recipes";
 import {
   fetchPantryIngredients,
+  formatIngredientDisplayName,
   normalizeIngredientName,
   savePantryIngredient,
 } from "@/lib/services/pantryService";
@@ -116,7 +117,7 @@ function buildPantryItems({
 
       const pantryIngredient = pantryByNormalizedName.get(normalizedName);
       itemMap.set(normalizedName, {
-        displayName: pantryIngredient?.name ?? ingredient.item.trim(),
+        displayName: pantryIngredient?.name ?? formatIngredientDisplayName(ingredient.item),
         normalizedName,
         pantryIngredient,
         recipeUses: [{ ingredient, recipe }],

@@ -1,13 +1,43 @@
 import type { Category, Recipe } from "@/lib/recipes";
 
 export type SupportedDisplayName = "Aarav" | "Sophie";
-export type CookedBy = SupportedDisplayName | "Both";
+export type CookedBy = SupportedDisplayName | "Both" | string;
 
 export type UserProfile = {
   id: string;
   displayName: SupportedDisplayName | string;
   email: string | null;
   photoURL?: string | null;
+  bio?: string;
+  favoriteCuisines?: string[];
+  createdAt?: unknown;
+  updatedAt?: unknown;
+};
+
+export type UserSummary = {
+  id: string;
+  displayName: string;
+  email?: string | null;
+  photoURL?: string | null;
+};
+
+export type FriendRequestStatus = "pending" | "accepted" | "declined";
+
+export type FriendRequest = {
+  id: string;
+  fromUser: UserSummary;
+  fromUserId: string;
+  status: FriendRequestStatus;
+  toUser: UserSummary;
+  toUserId: string;
+  createdAt?: unknown;
+  updatedAt?: unknown;
+};
+
+export type Friendship = {
+  id: string;
+  userIds: string[];
+  users: Record<string, UserSummary>;
   createdAt?: unknown;
   updatedAt?: unknown;
 };
@@ -33,6 +63,11 @@ export type CookLog = {
   notes?: string;
   changesNextTime?: string;
   imageUrl?: string;
+  rating?: number;
+  ratedByUserId?: string;
+  ratedByDisplayName?: string;
+  taggedUserIds?: string[];
+  taggedUsers?: UserSummary[];
   createdBy?: string;
   createdByDisplayName?: string;
   updatedBy?: string;

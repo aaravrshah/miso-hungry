@@ -5,4 +5,6 @@ export const firebaseCollections = {
   cookLogs: "cookLogs",
   groceryLists: "groceryLists",
   pantryIngredients: "pantryIngredients",
+  friendRequests: "friendRequests",
+  friendships: "friendships",
 } as const;

@@ -8,6 +8,7 @@ import {
   PackageSearch,
   PlusCircle,
   ShoppingBasket,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -16,6 +17,7 @@ import { useAuth } from "@/components/AuthProvider";
 const navItems = [
   { href: "/", label: "Home", icon: Home },
   { href: "/recipes", label: "Recipes", icon: BookOpen },
+  { href: "/friends", label: "Friends", icon: Users },
   { href: "/pantry", label: "Pantry", icon: PackageSearch },
   { href: "/grocery-list", label: "Grocery", icon: ShoppingBasket },
   { href: "/add-recipe", label: "Add", icon: PlusCircle },
@@ -45,7 +47,7 @@ export function Navigation() {
               Miso Hungry
             </span>
             <span className="mt-1 block text-sm font-medium text-stone-500">
-              Sophie and me
+              Sophie and friends
             </span>
           </span>
         </Link>
@@ -95,7 +97,7 @@ export function Navigation() {
         aria-label="Primary navigation"
         className="fixed inset-x-0 bottom-0 z-40 border-t border-stone-200 bg-[#fbf5eb]/95 px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 shadow-[0_-10px_30px_rgba(44,36,29,0.08)] backdrop-blur sm:bottom-4 sm:left-1/2 sm:right-auto sm:w-[min(44rem,calc(100%-2rem))] sm:-translate-x-1/2 sm:rounded-2xl sm:border sm:pb-2 lg:hidden"
       >
-        <div className="grid grid-cols-5 gap-1">
+        <div className="grid grid-cols-6 gap-1">
           {navItems.map((item) => {
             const active = isActivePath(pathname, item.href);
             const Icon = item.icon;

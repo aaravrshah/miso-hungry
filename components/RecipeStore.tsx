@@ -78,15 +78,7 @@ type RecipeStoreValue = {
 const RecipeStoreContext = createContext<RecipeStoreValue | undefined>(undefined);
 
 function displayNameToCookedBy(displayName?: string): CookedBy {
-  if (displayName === "Sophie") {
-    return "Sophie";
-  }
-
-  if (displayName === "Aarav") {
-    return "Aarav";
-  }
-
-  return "Both";
+  return displayName?.trim() || "Both";
 }
 
 export function RecipeProvider({ children }: { children: ReactNode }) {

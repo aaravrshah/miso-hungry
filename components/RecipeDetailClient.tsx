@@ -15,6 +15,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { AddRecipeForm } from "@/components/AddRecipeForm";
+import { useAuth } from "@/components/AuthProvider";
 import { CategoryPill } from "@/components/CategoryPill";
 import {
   CookingMode,
@@ -24,9 +25,12 @@ import {
 import { RecipeGrid } from "@/components/RecipeGrid";
 import { useRecipes } from "@/components/RecipeStore";
 import { StarRating } from "@/components/StarRating";
-import type { CookedBy, CookLog, CookLogInput } from "@/lib/firebase/schema";
+import { useSocial } from "@/components/SocialProvider";
+import type { CookedBy, CookLog, CookLogInput, UserSummary } from "@/lib/firebase/schema";
 import {
   averageRating,
+  canDeleteRecipe,
+  canEditRecipe,
   formatRecipeDate,
   formatRating,
   formatTimerMinutes,
@@ -41,11 +45,19 @@ type RecipeDetailClientProps = {
 
 const tabs = ["Overview", "Ingredients", "Directions", "Notes", "Cook History"] as const;
 type DetailTab = (typeof tabs)[number];
-const cookedByOptions: CookedBy[] = ["Aarav", "Sophie", "Both"];
 
 export function RecipeDetailClient({ recipeId }: RecipeDetailClientProps) {
   const router = useRouter();
-  const { deleteRecipe, error: storeError, isLoading, markRecipeMade, recipes } = useRecipes();
+  const { profile } = useAuth();
+  const { friends } = useSocial();
+  const {
+    deleteRecipe,
+    error: storeError,
+    isLoading,
+    markRecipeMade,
+    recipes,
+    updateRecipe,
+  } = useRecipes();
   const [activeTab, setActiveTab] = useState<DetailTab>("Overview");
   const [actionError, setActionError] = useState<string | undefined>();
   const [isDeleting, setIsDeleting] = useState(false);
@@ -55,6 +67,8 @@ export function RecipeDetailClient({ recipeId }: RecipeDetailClientProps) {
   const [editing, setEditing] = useState(false);
   const recipe = recipes.find((item) => item.id === recipeId);
   const recipeCategories = recipe ? getRecipeCategoryNames(recipe) : [];
+  const canEditCurrentRecipe = recipe ? canEditRecipe(recipe, profile?.id) : false;
+  const canDeleteCurrentRecipe = recipe ? canDeleteRecipe(recipe, profile?.id) : false;
   const cookingRecipeId = recipe?.id ?? "";
   const cookingIngredientCount = recipe?.ingredients.length ?? 0;
   const cookingDirectionCount = recipe?.directions.length ?? 0;
@@ -123,7 +137,7 @@ export function RecipeDetailClient({ recipeId }: RecipeDetailClientProps) {
     );
   }
 
-  if (editing) {
+  if (editing && canEditCurrentRecipe) {
     return (
       <div className="space-y-6">
         <button
@@ -187,40 +201,44 @@ export function RecipeDetailClient({ recipeId }: RecipeDetailClientProps) {
             <Utensils aria-hidden="true" className="h-4 w-4" />
             {isLoggingCook ? "Logging..." : "Mark made"}
           </button>
-          <button
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-4 text-sm font-bold text-stone-700 shadow-sm transition hover:bg-stone-50"
-            onClick={() => setEditing(true)}
-            type="button"
-          >
-            <Pencil aria-hidden="true" className="h-4 w-4" />
-            Edit
-          </button>
-          <button
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 text-sm font-bold text-red-700 shadow-sm transition hover:bg-red-100"
-            disabled={isDeleting}
-            onClick={async () => {
-              if (window.confirm(`Delete "${recipe.title}" from your cookbook?`)) {
-                setIsDeleting(true);
-                setActionError(undefined);
+          {canEditCurrentRecipe ? (
+            <button
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-4 text-sm font-bold text-stone-700 shadow-sm transition hover:bg-stone-50"
+              onClick={() => setEditing(true)}
+              type="button"
+            >
+              <Pencil aria-hidden="true" className="h-4 w-4" />
+              Edit
+            </button>
+          ) : null}
+          {canDeleteCurrentRecipe ? (
+            <button
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 text-sm font-bold text-red-700 shadow-sm transition hover:bg-red-100"
+              disabled={isDeleting}
+              onClick={async () => {
+                if (window.confirm(`Delete "${recipe.title}" from your cookbook?`)) {
+                  setIsDeleting(true);
+                  setActionError(undefined);
 
-                try {
-                  await deleteRecipe(recipe.id);
-                  router.push("/recipes");
-                } catch (deleteError) {
-                  setActionError(
-                    deleteError instanceof Error
-                      ? deleteError.message
-                      : "Unable to delete this recipe.",
-                  );
-                  setIsDeleting(false);
+                  try {
+                    await deleteRecipe(recipe.id);
+                    router.push("/recipes");
+                  } catch (deleteError) {
+                    setActionError(
+                      deleteError instanceof Error
+                        ? deleteError.message
+                        : "Unable to delete this recipe.",
+                    );
+                    setIsDeleting(false);
+                  }
                 }
-              }
-            }}
-            type="button"
-          >
-            <Trash2 aria-hidden="true" className="h-4 w-4" />
-            {isDeleting ? "Deleting..." : "Delete"}
-          </button>
+              }}
+              type="button"
+            >
+              <Trash2 aria-hidden="true" className="h-4 w-4" />
+              {isDeleting ? "Deleting..." : "Delete"}
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -310,7 +328,21 @@ export function RecipeDetailClient({ recipeId }: RecipeDetailClientProps) {
       </nav>
 
       <section className="rounded-lg border border-stone-200 bg-white/76 p-5 shadow-sm sm:p-6">
-        {activeTab === "Overview" ? <OverviewSection recipe={recipe} /> : null}
+        {activeTab === "Overview" ? (
+          <OverviewSection
+            canManageCollaborators={canDeleteCurrentRecipe}
+            friends={friends}
+            onUpdateCollaborators={async (collaborators) => {
+              const collaboratorIds = collaborators.map((collaborator) => collaborator.id);
+              await updateRecipe(recipe.id, {
+                ...recipe,
+                collaboratorIds,
+                collaborators,
+              });
+            }}
+            recipe={recipe}
+          />
+        ) : null}
         {activeTab === "Ingredients" ? <IngredientsSection recipe={recipe} /> : null}
         {activeTab === "Directions" ? <DirectionsSection recipe={recipe} /> : null}
         {activeTab === "Notes" ? <NotesSection recipe={recipe} /> : null}
@@ -327,34 +359,190 @@ export function RecipeDetailClient({ recipeId }: RecipeDetailClientProps) {
   );
 }
 
-function OverviewSection({ recipe }: { recipe: Recipe }) {
+function OverviewSection({
+  canManageCollaborators,
+  friends,
+  onUpdateCollaborators,
+  recipe,
+}: {
+  canManageCollaborators: boolean;
+  friends: UserSummary[];
+  onUpdateCollaborators: (collaborators: UserSummary[]) => Promise<void>;
+  recipe: Recipe;
+}) {
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-      <InfoTile label="Cuisine" value={recipe.cuisine || "Not set"} />
-      <InfoTile label="Difficulty" value={recipe.difficulty ?? "Not set"} />
-      <InfoTile label="Cook time" value={recipe.cookTime || "Not set"} />
-      <InfoTile label="Times made" value={`${recipe.timesMade}`} />
-      <InfoTile label="Aarav rating" value={formatRating(recipe.aaravRating)} />
-      <InfoTile label="Sophie rating" value={formatRating(recipe.sophieRating)} />
-      <InfoTile label="Date added" value={formatRecipeDate(recipe.dateAdded)} />
-      <div className="rounded-lg bg-stone-50 p-4 ring-1 ring-stone-200">
-        <p className="text-xs font-bold uppercase tracking-[0.16em] text-stone-400">
-          Source
-        </p>
-        {recipe.sourceUrl ? (
-          <a
-            className="mt-2 inline-flex items-center gap-2 text-sm font-bold text-[var(--tomato)]"
-            href={recipe.sourceUrl}
-            rel="noreferrer"
-            target="_blank"
-          >
-            Open source
-            <ExternalLink aria-hidden="true" className="h-4 w-4" />
-          </a>
-        ) : (
-          <p className="mt-1 font-semibold text-stone-950">Personal note</p>
-        )}
+    <div className="space-y-5">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <InfoTile label="Cuisine" value={recipe.cuisine || "Not set"} />
+        <InfoTile label="Difficulty" value={recipe.difficulty ?? "Not set"} />
+        <InfoTile label="Cook time" value={recipe.cookTime || "Not set"} />
+        <InfoTile label="Times made" value={`${recipe.timesMade}`} />
+        <InfoTile
+          label="Average rating"
+          value={
+            averageRating(recipe) ? `${averageRating(recipe)?.toFixed(1)}/5` : "Not rated"
+          }
+        />
+        <InfoTile label="Aarav rating" value={formatRating(recipe.aaravRating)} />
+        <InfoTile label="Sophie rating" value={formatRating(recipe.sophieRating)} />
+        <InfoTile label="Date added" value={formatRecipeDate(recipe.dateAdded)} />
+        <div className="rounded-lg bg-stone-50 p-4 ring-1 ring-stone-200">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-stone-400">
+            Source
+          </p>
+          {recipe.sourceUrl ? (
+            <a
+              className="mt-2 inline-flex items-center gap-2 text-sm font-bold text-[var(--tomato)]"
+              href={recipe.sourceUrl}
+              rel="noreferrer"
+              target="_blank"
+            >
+              Open source
+              <ExternalLink aria-hidden="true" className="h-4 w-4" />
+            </a>
+          ) : (
+            <p className="mt-1 font-semibold text-stone-950">Personal note</p>
+          )}
+        </div>
       </div>
+      <CollaboratorsPanel
+        canManage={canManageCollaborators}
+        friends={friends}
+        onUpdateCollaborators={onUpdateCollaborators}
+        recipe={recipe}
+      />
+    </div>
+  );
+}
+
+function CollaboratorsPanel({
+  canManage,
+  friends,
+  onUpdateCollaborators,
+  recipe,
+}: {
+  canManage: boolean;
+  friends: UserSummary[];
+  onUpdateCollaborators: (collaborators: UserSummary[]) => Promise<void>;
+  recipe: Recipe;
+}) {
+  const [selectedFriendId, setSelectedFriendId] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [localError, setLocalError] = useState<string | undefined>();
+  const collaborators = recipe.collaborators ?? [];
+  const collaboratorIds = new Set(recipe.collaboratorIds ?? collaborators.map((user) => user.id));
+  const availableFriends = friends.filter((friend) => !collaboratorIds.has(friend.id));
+
+  async function saveCollaborators(nextCollaborators: UserSummary[]) {
+    setIsSaving(true);
+    setLocalError(undefined);
+
+    try {
+      await onUpdateCollaborators(nextCollaborators);
+      setSelectedFriendId("");
+    } catch (collaboratorError) {
+      setLocalError(
+        collaboratorError instanceof Error
+          ? collaboratorError.message
+          : "Unable to update collaborators.",
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <div className="rounded-lg bg-stone-50 p-4 ring-1 ring-stone-200">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-stone-400">
+            Collaborators
+          </p>
+          <p className="mt-1 text-sm leading-6 text-stone-600">
+            Friends listed here can edit this recipe.
+          </p>
+        </div>
+        {recipe.createdBy ? (
+          <Link
+            className="text-sm font-bold text-[var(--tomato)]"
+            href={`/profiles/${recipe.createdBy}`}
+          >
+            Owner: {recipe.createdByDisplayName ?? "Cook"}
+          </Link>
+        ) : null}
+      </div>
+
+      {collaborators.length > 0 ? (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {collaborators.map((collaborator) => (
+            <span
+              className="inline-flex min-h-9 items-center gap-2 rounded-full bg-white px-3 text-sm font-bold text-stone-700 ring-1 ring-stone-200"
+              key={collaborator.id}
+            >
+              {collaborator.displayName}
+              {canManage ? (
+                <button
+                  className="text-stone-400 transition hover:text-red-600"
+                  disabled={isSaving}
+                  onClick={() =>
+                    saveCollaborators(
+                      collaborators.filter((user) => user.id !== collaborator.id),
+                    )
+                  }
+                  type="button"
+                >
+                  <span className="sr-only">Remove {collaborator.displayName}</span>
+                  &times;
+                </button>
+              ) : null}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-4 text-sm font-semibold text-stone-500">
+          No collaborators yet.
+        </p>
+      )}
+
+      {canManage ? (
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+          <select
+            className="h-11 flex-1 rounded-lg border border-stone-200 bg-white px-3 text-sm font-semibold text-stone-700 outline-none transition focus:border-[var(--tomato)] focus:ring-4 focus:ring-red-100"
+            disabled={availableFriends.length === 0 || isSaving}
+            onChange={(event) => setSelectedFriendId(event.target.value)}
+            value={selectedFriendId}
+          >
+            <option value="">
+              {availableFriends.length ? "Choose a friend" : "No friends to add"}
+            </option>
+            {availableFriends.map((friend) => (
+              <option key={friend.id} value={friend.id}>
+                {friend.displayName}
+              </option>
+            ))}
+          </select>
+          <button
+            className="inline-flex min-h-11 items-center justify-center rounded-lg bg-stone-950 px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={!selectedFriendId || isSaving}
+            onClick={() => {
+              const friend = friends.find((item) => item.id === selectedFriendId);
+
+              if (friend) {
+                saveCollaborators([...collaborators, friend]);
+              }
+            }}
+            type="button"
+          >
+            {isSaving ? "Saving..." : "Add collaborator"}
+          </button>
+        </div>
+      ) : null}
+
+      {localError ? (
+        <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-700">
+          {localError}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -438,11 +626,14 @@ function emptyCookLogInput(): CookLogInput {
     dateMade: todayString(),
     cookedBy: "Both",
     occasion: "",
+    rating: undefined,
     aaravRating: undefined,
     sophieRating: undefined,
     notes: "",
     changesNextTime: "",
     imageUrl: "",
+    taggedUserIds: [],
+    taggedUsers: [],
   };
 }
 
@@ -451,11 +642,14 @@ function cookLogToInput(cookLog: CookLog): CookLogInput {
     dateMade: cookLog.dateMade,
     cookedBy: cookLog.cookedBy,
     occasion: cookLog.occasion ?? "",
+    rating: cookLog.rating,
     aaravRating: cookLog.aaravRating,
     sophieRating: cookLog.sophieRating,
     notes: cookLog.notes ?? "",
     changesNextTime: cookLog.changesNextTime ?? "",
     imageUrl: cookLog.imageUrl ?? "",
+    taggedUserIds: cookLog.taggedUserIds ?? [],
+    taggedUsers: cookLog.taggedUsers ?? [],
   };
 }
 
@@ -468,7 +662,14 @@ function CookHistorySection({ recipe }: { recipe: Recipe }) {
     loadCookLogs,
     updateCookLog,
   } = useRecipes();
+  const { profile } = useAuth();
+  const { friends } = useSocial();
   const cookLogs = cookLogsByRecipe[recipe.id] ?? [];
+  const cookedByOptions: CookedBy[] = [
+    "Both",
+    profile?.displayName ? String(profile.displayName) : "",
+    ...friends.map((friend) => friend.displayName),
+  ].filter((value, index, values): value is CookedBy => Boolean(value) && values.indexOf(value) === index);
   const [formInput, setFormInput] = useState<CookLogInput>(emptyCookLogInput);
   const [editingLogId, setEditingLogId] = useState<string | undefined>();
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
@@ -520,6 +721,24 @@ function CookHistorySection({ recipe }: { recipe: Recipe }) {
     setEditingLogId(undefined);
     setFormInput(emptyCookLogInput());
     setLocalError(undefined);
+  }
+
+  function toggleTaggedFriend(friend: UserSummary) {
+    setFormInput((currentInput) => {
+      const taggedUserIds = currentInput.taggedUserIds ?? [];
+      const taggedUsers = currentInput.taggedUsers ?? [];
+      const selected = taggedUserIds.includes(friend.id);
+
+      return {
+        ...currentInput,
+        taggedUserIds: selected
+          ? taggedUserIds.filter((userId) => userId !== friend.id)
+          : [...taggedUserIds, friend.id],
+        taggedUsers: selected
+          ? taggedUsers.filter((user) => user.id !== friend.id)
+          : [...taggedUsers, friend],
+      };
+    });
   }
 
   async function submitCookLog(event: FormEvent<HTMLFormElement>) {
@@ -589,7 +808,7 @@ function CookHistorySection({ recipe }: { recipe: Recipe }) {
           ) : null}
         </div>
 
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           <label className="space-y-2">
             <span className="text-sm font-bold text-stone-700">Date made</span>
             <input
@@ -615,26 +834,42 @@ function CookHistorySection({ recipe }: { recipe: Recipe }) {
             </select>
           </label>
           <div className="space-y-2">
-            <span className="text-sm font-bold text-stone-700">Aarav rating</span>
+            <span className="text-sm font-bold text-stone-700">Your rating</span>
             <div className="flex h-12 items-center rounded-lg border border-stone-200 bg-white px-3">
               <StarRating
-                label="Aarav rating"
-                onChange={(value) => updateFormField("aaravRating", value)}
-                value={formInput.aaravRating}
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <span className="text-sm font-bold text-stone-700">Sophie rating</span>
-            <div className="flex h-12 items-center rounded-lg border border-stone-200 bg-white px-3">
-              <StarRating
-                label="Sophie rating"
-                onChange={(value) => updateFormField("sophieRating", value)}
-                value={formInput.sophieRating}
+                label="Your rating"
+                onChange={(value) => updateFormField("rating", value)}
+                value={formInput.rating}
               />
             </div>
           </div>
         </div>
+
+        {friends.length > 0 ? (
+          <div className="space-y-2">
+            <span className="text-sm font-bold text-stone-700">Tag people</span>
+            <div className="flex min-h-12 flex-wrap gap-2 rounded-lg border border-stone-200 bg-white px-3 py-2">
+              {friends.map((friend) => {
+                const selected = formInput.taggedUserIds?.includes(friend.id);
+
+                return (
+                  <button
+                    className={`min-h-8 rounded-full px-3 text-sm font-bold ring-1 transition ${
+                      selected
+                        ? "bg-stone-950 text-white ring-stone-950"
+                        : "bg-stone-50 text-stone-600 ring-stone-200 hover:bg-stone-100"
+                    }`}
+                    key={friend.id}
+                    onClick={() => toggleTaggedFriend(friend)}
+                    type="button"
+                  >
+                    {friend.displayName}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
 
         <div className="grid gap-3 md:grid-cols-2">
           <label className="space-y-2">
@@ -767,9 +1002,31 @@ function CookHistorySection({ recipe }: { recipe: Recipe }) {
             </div>
 
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <InfoTile
+                label={
+                  cookLog.ratedByDisplayName
+                    ? `${cookLog.ratedByDisplayName} rating`
+                    : "Rating"
+                }
+                value={formatRating(cookLog.rating)}
+              />
               <InfoTile label="Aarav rating" value={formatRating(cookLog.aaravRating)} />
               <InfoTile label="Sophie rating" value={formatRating(cookLog.sophieRating)} />
             </div>
+
+            {cookLog.taggedUsers?.length ? (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {cookLog.taggedUsers.map((taggedUser) => (
+                  <Link
+                    className="rounded-full bg-stone-100 px-3 py-1.5 text-xs font-bold text-stone-600 ring-1 ring-stone-200"
+                    href={`/profiles/${taggedUser.id}`}
+                    key={taggedUser.id}
+                  >
+                    with {taggedUser.displayName}
+                  </Link>
+                ))}
+              </div>
+            ) : null}
 
             {cookLog.imageUrl ? (
               <div className="mt-4 overflow-hidden rounded-lg border border-stone-200 bg-stone-100">

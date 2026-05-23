@@ -65,6 +65,16 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
           </div>
         </div>
         <p className="line-clamp-2 text-sm leading-6 text-stone-600">{recipe.description}</p>
+        {recipe.createdByDisplayName || recipe.collaborators?.length ? (
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-stone-400">
+            {recipe.createdByDisplayName ? `By ${recipe.createdByDisplayName}` : "Shared"}
+            {recipe.collaborators?.length
+              ? ` · ${recipe.collaborators.length} collaborator${
+                  recipe.collaborators.length === 1 ? "" : "s"
+                }`
+              : ""}
+          </p>
+        ) : null}
         {typeof recipe.aaravRating === "number" || typeof recipe.sophieRating === "number" ? (
           <div className="flex flex-wrap gap-2 text-xs font-bold text-stone-600">
             {typeof recipe.aaravRating === "number" ? (

@@ -2,6 +2,18 @@ export type CategoryName = string;
 
 export type Difficulty = "Easy" | "Medium" | "Hard";
 
+export type RecipeUserSummary = {
+  id: string;
+  displayName: string;
+  email?: string | null;
+  photoURL?: string | null;
+};
+
+export type RecipeUserRating = RecipeUserSummary & {
+  rating: number;
+  dateMade?: string;
+};
+
 export type Category = {
   id: string;
   name: CategoryName;
@@ -60,6 +72,12 @@ export type Recipe = {
   timesMade: number;
   createdBy?: string;
   createdByDisplayName?: string;
+  collaboratorIds?: string[];
+  collaborators?: RecipeUserSummary[];
+  averageUserRating?: number;
+  ratingCount?: number;
+  ratingTotal?: number;
+  latestUserRatings?: RecipeUserRating[];
   updatedBy?: string;
   updatedByDisplayName?: string;
 };
@@ -155,10 +173,15 @@ export function normalizeRatingToFive(value?: number) {
   }
 
   const fivePointValue = value > 5 ? value / 2 : value;
-  return Math.min(5, Math.max(1, fivePointValue));
+  const clampedRating = Math.min(5, Math.max(0.5, fivePointValue));
+  return Math.round(clampedRating * 2) / 2;
 }
 
 export function averageRating(recipe: Recipe) {
+  if (typeof recipe.averageUserRating === "number") {
+    return normalizeRatingToFive(recipe.averageUserRating);
+  }
+
   const ratings = [recipe.aaravRating, recipe.sophieRating]
     .map((rating) => normalizeRatingToFive(rating))
     .filter(
@@ -205,4 +228,14 @@ export function formatRecipeDate(value?: string) {
     month: "short",
     year: "numeric",
   }).format(new Date(`${value}T12:00:00`));
+}
+
+export function canEditRecipe(recipe: Recipe, userId?: string) {
+  return Boolean(
+    userId && (recipe.createdBy === userId || recipe.collaboratorIds?.includes(userId)),
+  );
+}
+
+export function canDeleteRecipe(recipe: Recipe, userId?: string) {
+  return Boolean(userId && recipe.createdBy === userId);
 }

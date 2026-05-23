@@ -32,6 +32,8 @@ import type {
   UserProfile,
 } from "@/lib/firebase/schema";
 import {
+  normalizeRatingToFive,
+  type RecipeUserRating,
   uncategorizedCategoryName,
   type Category,
   type Recipe,
@@ -389,6 +391,8 @@ function recipeFromDoc(recipeId: string, data: Partial<Recipe>) {
     categoryId: data.categoryId ?? categoryIds[0] ?? "",
     categories,
     categoryIds,
+    collaboratorIds: data.collaboratorIds?.filter(Boolean) ?? [],
+    collaborators: data.collaborators ?? [],
     timesMade: data.timesMade ?? 0,
   } as FirestoreRecipe;
 }
@@ -407,6 +411,8 @@ function normalizeRecipeForSave(recipe: Recipe) {
     categoryId: categoryIds[0] ?? "",
     categories,
     categoryIds,
+    collaboratorIds: recipe.collaboratorIds?.filter(Boolean) ?? [],
+    collaborators: recipe.collaborators ?? [],
   };
 }
 
@@ -459,6 +465,8 @@ export async function createRecipe({
     ...normalizeRecipeForSave(recipe),
     ...uploadedImage,
     id: recipeRef.id,
+    collaboratorIds: recipe.collaboratorIds?.filter(Boolean) ?? [],
+    collaborators: recipe.collaborators ?? [],
     createdBy: user.id,
     createdByDisplayName: user.displayName,
     updatedBy: user.id,
@@ -532,11 +540,11 @@ function sortCookLogs(cookLogs: CookLog[]) {
 }
 
 function normalizeCookedBy(value?: string): CookedBy {
-  if (value === "Sophie" || value === "Both") {
+  if (value?.trim()) {
     return value;
   }
 
-  return "Aarav";
+  return "Both";
 }
 
 function normalizeRating(value?: number) {
@@ -544,7 +552,7 @@ function normalizeRating(value?: number) {
     return undefined;
   }
 
-  return Math.min(5, Math.max(1, value));
+  return normalizeRatingToFive(value);
 }
 
 function cleanCookLogInput(input: CookLogInput): CookLogInput {
@@ -552,11 +560,14 @@ function cleanCookLogInput(input: CookLogInput): CookLogInput {
     dateMade: input.dateMade || todayString(),
     cookedBy: input.cookedBy,
     occasion: input.occasion?.trim() || undefined,
+    rating: normalizeRating(input.rating),
     aaravRating: normalizeRating(input.aaravRating),
     sophieRating: normalizeRating(input.sophieRating),
     notes: input.notes?.trim() || undefined,
     changesNextTime: input.changesNextTime?.trim() || undefined,
     imageUrl: input.imageUrl?.trim() || undefined,
+    taggedUserIds: input.taggedUserIds?.filter(Boolean) ?? [],
+    taggedUsers: input.taggedUsers ?? [],
   };
 }
 
@@ -571,6 +582,48 @@ function cookLogFromDoc(logId: string, data: Partial<CookLog> & {
     dateMade: data.dateMade ?? data.cookedAt ?? todayString(),
     cookedBy: normalizeCookedBy(data.cookedBy ?? data.displayName),
   } as CookLog;
+}
+
+function collectCookLogRatings(cookLogs: CookLog[]) {
+  const ratings: number[] = [];
+  const latestByUser = new Map<string, RecipeUserRating>();
+
+  for (const cookLog of cookLogs) {
+    const explicitRating = normalizeRating(cookLog.rating);
+
+    if (typeof explicitRating === "number") {
+      ratings.push(explicitRating);
+
+      if (cookLog.ratedByUserId && !latestByUser.has(cookLog.ratedByUserId)) {
+        latestByUser.set(cookLog.ratedByUserId, {
+          id: cookLog.ratedByUserId,
+          displayName: cookLog.ratedByDisplayName ?? "Cook",
+          rating: explicitRating,
+          dateMade: cookLog.dateMade,
+        });
+      }
+    }
+
+    const aaravRating = normalizeRating(cookLog.aaravRating);
+    const sophieRating = normalizeRating(cookLog.sophieRating);
+
+    if (typeof aaravRating === "number") {
+      ratings.push(aaravRating);
+    }
+
+    if (typeof sophieRating === "number") {
+      ratings.push(sophieRating);
+    }
+  }
+
+  const ratingTotal = ratings.reduce((total, rating) => total + rating, 0);
+
+  return {
+    averageUserRating: ratings.length ? ratingTotal / ratings.length : undefined,
+    latestUserRatings: Array.from(latestByUser.values()).slice(0, 6),
+    ratingCount: ratings.length,
+    ratingTotal,
+  };
 }
 
 export async function fetchCookLogs(recipeId: string) {
@@ -613,8 +666,13 @@ async function syncRecipeCookSummary({
   const latestSophieRating = cookLogs.find(
     (cookLog) => typeof cookLog.sophieRating === "number",
   )?.sophieRating;
+  const ratingSummary = collectCookLogRatings(cookLogs);
   const updatePayload: Record<string, unknown> = {
+    averageUserRating: ratingSummary.averageUserRating ?? deleteField(),
     lastMadeDate: lastMadeDate ?? deleteField(),
+    latestUserRatings: ratingSummary.latestUserRatings,
+    ratingCount: ratingSummary.ratingCount,
+    ratingTotal: ratingSummary.ratingTotal,
     timesMade: cookLogs.length,
     updatedAt: serverTimestamp(),
     updatedBy: user.id,
@@ -622,6 +680,10 @@ async function syncRecipeCookSummary({
   };
   const recipePatch: Partial<Recipe> = {
     lastMadeDate,
+    averageUserRating: ratingSummary.averageUserRating,
+    latestUserRatings: ratingSummary.latestUserRatings,
+    ratingCount: ratingSummary.ratingCount,
+    ratingTotal: ratingSummary.ratingTotal,
     timesMade: cookLogs.length,
     updatedBy: user.id,
     updatedByDisplayName: user.displayName,
@@ -668,6 +730,9 @@ export async function createCookLog({
   const cookLog: Omit<CookLog, "id"> = {
     recipeId: recipe.id,
     ...cleanedInput,
+    ratedByDisplayName:
+      typeof cleanedInput.rating === "number" ? String(user.displayName) : undefined,
+    ratedByUserId: typeof cleanedInput.rating === "number" ? user.id : undefined,
     createdBy: user.id,
     createdByDisplayName: user.displayName,
     updatedBy: user.id,
@@ -723,11 +788,17 @@ export async function updateCookLog({
     dateMade: cleanedInput.dateMade,
     cookedBy: cleanedInput.cookedBy,
     occasion: cleanedInput.occasion ?? deleteField(),
+    rating: cleanedInput.rating ?? deleteField(),
+    ratedByDisplayName:
+      cleanedInput.rating !== undefined ? String(user.displayName) : deleteField(),
+    ratedByUserId: cleanedInput.rating !== undefined ? user.id : deleteField(),
     aaravRating: cleanedInput.aaravRating ?? deleteField(),
     sophieRating: cleanedInput.sophieRating ?? deleteField(),
     notes: cleanedInput.notes ?? deleteField(),
     changesNextTime: cleanedInput.changesNextTime ?? deleteField(),
     imageUrl: cleanedInput.imageUrl ?? deleteField(),
+    taggedUserIds: cleanedInput.taggedUserIds ?? [],
+    taggedUsers: cleanedInput.taggedUsers ?? [],
     updatedAt: serverTimestamp(),
     updatedBy: user.id,
     updatedByDisplayName: user.displayName,

@@ -22,6 +22,12 @@ export function normalizeIngredientName(value: string) {
   return value.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
+export function formatIngredientDisplayName(value: string) {
+  const normalizedName = normalizeIngredientName(value);
+
+  return normalizedName.replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
 function pantryIngredientIdFromName(name: string) {
   return slugify(normalizeIngredientName(name)) || `ingredient-${Date.now().toString(36)}`;
 }
@@ -32,7 +38,7 @@ function cleanList(value?: string[]) {
 
 function cleanPantryIngredientInput(input: PantryIngredientInput) {
   return {
-    name: input.name.trim(),
+    name: formatIngredientDisplayName(input.name),
     normalizedName: normalizeIngredientName(input.name),
     category: input.category,
     preferredBrand: input.preferredBrand?.trim() || undefined,

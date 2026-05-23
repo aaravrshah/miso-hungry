@@ -2,10 +2,7 @@
 
 import { ChefHat, Loader2 } from "lucide-react";
 import { useState, type FormEvent, type ReactNode } from "react";
-import type { SupportedDisplayName } from "@/lib/firebase/schema";
 import { useAuth } from "@/components/AuthProvider";
-
-const supportedUsers: SupportedDisplayName[] = ["Aarav", "Sophie"];
 
 export function AuthGate({ children }: { children: ReactNode }) {
   const {
@@ -20,7 +17,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   } =
     useAuth();
   const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
-  const [displayName, setDisplayName] = useState<SupportedDisplayName>("Aarav");
+  const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [formError, setFormError] = useState<string | undefined>();
@@ -145,16 +142,14 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
           {mode === "sign-up" ? (
             <label className="space-y-2">
-              <span className="text-sm font-bold text-stone-700">Profile</span>
-              <select
+              <span className="text-sm font-bold text-stone-700">Display name</span>
+              <input
                 className={inputClassName}
-                onChange={(event) => setDisplayName(event.target.value as SupportedDisplayName)}
+                onChange={(event) => setDisplayName(event.target.value)}
+                placeholder="Michael"
+                required
                 value={displayName}
-              >
-                {supportedUsers.map((name) => (
-                  <option key={name}>{name}</option>
-                ))}
-              </select>
+              />
             </label>
           ) : null}
 
@@ -214,7 +209,9 @@ function FullPageShell({ children }: { children: ReactNode }) {
           </span>
           <div>
             <p className="font-serif text-2xl leading-none text-stone-950">Miso Hungry</p>
-            <p className="mt-1 text-sm font-semibold text-stone-500">Aarav and Sophie</p>
+            <p className="mt-1 text-sm font-semibold text-stone-500">
+              Recipes with friends
+            </p>
           </div>
         </div>
         {children}

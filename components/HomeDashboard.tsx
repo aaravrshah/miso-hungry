@@ -105,13 +105,7 @@ export function HomeDashboard() {
   const averageScore = ratedRecipes.length
     ? ratedRecipes.reduce((total, rating) => total + rating, 0) / ratedRecipes.length
     : undefined;
-  const bothLoveCount = recipes.filter(
-    (recipe) =>
-      typeof recipe.aaravRating === "number" &&
-      typeof recipe.sophieRating === "number" &&
-      (recipe.aaravRating > 5 ? recipe.aaravRating / 2 : recipe.aaravRating) >= 4 &&
-      (recipe.sophieRating > 5 ? recipe.sophieRating / 2 : recipe.sophieRating) >= 4,
-  ).length;
+  const topRatedCount = recipes.filter((recipe) => (averageRating(recipe) ?? 0) >= 4).length;
   const recommendations = [...recipes]
     .filter((recipe) => {
       const days = daysSince(recipe.lastMadeDate);
@@ -168,9 +162,9 @@ export function HomeDashboard() {
             />
             <DashboardStat
               icon={Heart}
-              label="both-love picks"
+              label="top-rated picks"
               tone="text-[var(--plum)]"
-              value={`${bothLoveCount}`}
+              value={`${topRatedCount}`}
             />
             <DashboardStat
               icon={Sparkles}
