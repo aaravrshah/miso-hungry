@@ -1,9 +1,14 @@
 "use client";
 
 import { Search, SlidersHorizontal } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { type CategoryName, type Recipe } from "@/lib/recipes";
-import { CategoryPill } from "@/components/CategoryPill";
+import { useMemo, useState } from "react";
+import {
+  getRecipeCategoryNames,
+  recipeMatchesCategory,
+  type CategoryName,
+  type Recipe,
+} from "@/lib/recipes";
+import { CategoryManager } from "@/components/CategoryManager";
 import { RecipeGrid } from "@/components/RecipeGrid";
 import { useRecipes } from "@/components/RecipeStore";
 
@@ -21,6 +26,7 @@ function matchesRecipe(recipe: Recipe, query: string) {
       recipe.title,
       recipe.description,
       recipe.category,
+      ...getRecipeCategoryNames(recipe),
       recipe.cuisine,
       recipe.notes,
       ...(recipe.tags ?? []),
@@ -39,61 +45,30 @@ function matchesRecipe(recipe: Recipe, query: string) {
 }
 
 export function RecipeBrowser({ initialCategory = "All" }: RecipeBrowserProps) {
-  const { categories, error, isLoading, loadRecipesByCategory, recipes } = useRecipes();
+  const { categories, error, isLoading, recipes } = useRecipes();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<FilterValue>(initialCategory);
-  const [categoryRecipes, setCategoryRecipes] = useState<Recipe[] | undefined>();
-  const [filterError, setFilterError] = useState<string | undefined>();
-  const [isFiltering, setIsFiltering] = useState(false);
 
-  async function selectCategory(nextCategory: FilterValue) {
+  function selectCategory(nextCategory: FilterValue) {
     setCategory(nextCategory);
-    setFilterError(undefined);
-
-    if (nextCategory === "All") {
-      setCategoryRecipes(undefined);
-      return;
-    }
-
-    const selectedCategory = categories.find(
-      (item) =>
-        item.id === nextCategory || item.slug === nextCategory || item.name === nextCategory,
-    );
-
-    if (!selectedCategory) {
-      setCategoryRecipes(undefined);
-      return;
-    }
-
-    setIsFiltering(true);
-
-    try {
-      setCategoryRecipes(await loadRecipesByCategory(selectedCategory.id));
-    } catch (categoryError) {
-      setFilterError(
-        categoryError instanceof Error
-          ? categoryError.message
-          : "Unable to load this category.",
-      );
-    } finally {
-      setIsFiltering(false);
-    }
   }
 
-  useEffect(() => {
-    if (initialCategory !== "All" && categories.length > 0) {
-      window.queueMicrotask(() => {
-        selectCategory(initialCategory);
-      });
-    }
-    // Run once when categories arrive so URLs like /recipes?category=pasta hydrate.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categories.length, initialCategory]);
+  const selectedCategory =
+    category === "All"
+      ? undefined
+      : categories.find(
+          (item) => item.id === category || item.slug === category || item.name === category,
+        );
+  const filteredRecipes = useMemo(() => {
+    const recipesForCategory =
+      category === "All" || !selectedCategory
+        ? recipes
+        : recipes.filter((recipe) =>
+            recipeMatchesCategory(recipe, selectedCategory.id, selectedCategory.name),
+          );
 
-  const filteredRecipes = useMemo(
-    () => (categoryRecipes ?? recipes).filter((recipe) => matchesRecipe(recipe, query)),
-    [categoryRecipes, query, recipes],
-  );
+    return recipesForCategory.filter((recipe) => matchesRecipe(recipe, query));
+  }, [category, query, recipes, selectedCategory]);
 
   return (
     <div className="space-y-6">
@@ -126,43 +101,21 @@ export function RecipeBrowser({ initialCategory = "All" }: RecipeBrowserProps) {
           <div className="flex min-h-12 items-center gap-2 rounded-lg border border-stone-200 bg-white/70 px-4 text-sm font-semibold text-stone-600 shadow-sm">
             <SlidersHorizontal aria-hidden="true" className="h-4 w-4" />
             <span>
-              {isLoading || isFiltering ? "Loading..." : `${filteredRecipes.length} recipes`}
+              {isLoading ? "Loading..." : `${filteredRecipes.length} recipes`}
             </span>
           </div>
         </div>
-
-        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
-          <CategoryPill
-            active={category === "All"}
-            count={recipes.length}
-            name="All"
-            onClick={() => selectCategory("All")}
-          />
-          {categories.map((item) => (
-            <CategoryPill
-              active={
-                category === item.id || category === item.slug || category === item.name
-              }
-              count={
-                recipes.filter(
-                  (recipe) => recipe.categoryId === item.id || recipe.category === item.name,
-                ).length
-              }
-              key={item.id}
-              name={item.name}
-              onClick={() => selectCategory(item.id)}
-            />
-          ))}
-        </div>
       </section>
 
-      {error || filterError ? (
+      <CategoryManager onSelectCategory={selectCategory} selectedCategory={category} />
+
+      {error ? (
         <p className="rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-700">
-          {filterError ?? error}
+          {error}
         </p>
       ) : null}
 
-      {(isLoading || isFiltering) && filteredRecipes.length === 0 ? (
+      {isLoading && filteredRecipes.length === 0 ? (
         <p className="rounded-lg border border-stone-200 bg-white/72 p-4 text-sm font-semibold text-stone-600 shadow-sm">
           Loading recipes...
         </p>

@@ -1,17 +1,19 @@
 "use client";
 
-import { ClipboardCheck, ImagePlus, Plus, Save, Trash2 } from "lucide-react";
+import { ClipboardCheck, ImagePlus, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import type { FormEvent } from "react";
+import { useState, type FormEvent } from "react";
+import { StarRating } from "@/components/StarRating";
+import { useRecipes } from "@/components/RecipeStore";
 import {
+  formatTimerMinutes,
   type CategoryName,
   type Difficulty,
   type Direction,
   type Ingredient,
   type Recipe,
+  uncategorizedCategoryName,
 } from "@/lib/recipes";
-import { useRecipes } from "@/components/RecipeStore";
 
 type AddRecipeFormProps = {
   mode?: "create" | "edit";
@@ -21,27 +23,34 @@ type AddRecipeFormProps = {
 
 const difficulties: Difficulty[] = ["Easy", "Medium", "Hard"];
 
+const ingredientUnits = [
+  "teaspoons",
+  "teaspoon",
+  "tablespoons",
+  "tablespoon",
+  "ounces",
+  "ounce",
+  "pounds",
+  "pound",
+  "grams",
+  "gram",
+  "cups",
+  "cup",
+  "tbsp",
+  "tsp",
+  "cans",
+  "can",
+  "lbs",
+  "lb",
+  "oz",
+  "g",
+  "kg",
+  "ml",
+  "l",
+].sort((first, second) => second.length - first.length);
+
 function today() {
   return new Date().toISOString().slice(0, 10);
-}
-
-function emptyIngredient(): Ingredient {
-  return {
-    quantity: "",
-    unit: "",
-    item: "",
-    brand: "",
-    productName: "",
-    note: "",
-  };
-}
-
-function emptyDirection(): Direction {
-  return {
-    section: "",
-    instruction: "",
-    timerMinutes: undefined,
-  };
 }
 
 function createBlankRecipe(): Recipe {
@@ -49,8 +58,10 @@ function createBlankRecipe(): Recipe {
     id: "",
     title: "",
     description: "",
-    categoryId: "date-night",
-    category: "Date Night",
+    categoryId: "",
+    category: uncategorizedCategoryName,
+    categoryIds: [],
+    categories: [],
     tags: [],
     cuisine: "",
     prepTime: "",
@@ -59,8 +70,8 @@ function createBlankRecipe(): Recipe {
     difficulty: undefined,
     sourceUrl: "",
     coverImageUrl: "",
-    ingredients: [emptyIngredient()],
-    directions: [emptyDirection()],
+    ingredients: [],
+    directions: [],
     notes: "",
     aaravRating: undefined,
     sophieRating: undefined,
@@ -79,53 +90,179 @@ function numberFromInput(value: string) {
   return Number.isNaN(parsed) ? undefined : parsed;
 }
 
+function recipeWithCategoryArrays(recipe: Recipe): Recipe {
+  const categoryIds = recipe.categoryIds?.length
+    ? recipe.categoryIds.filter(Boolean)
+    : recipe.categoryId
+      ? [recipe.categoryId]
+      : [];
+  const categories = recipe.categories?.length
+    ? recipe.categories.filter(Boolean)
+    : recipe.category
+      ? [recipe.category]
+      : [];
+
+  return {
+    ...recipe,
+    category: categories[0] ?? uncategorizedCategoryName,
+    categoryId: categoryIds[0] ?? "",
+    categories,
+    categoryIds,
+  };
+}
+
+function ingredientToLine(ingredient: Ingredient) {
+  const base = [ingredient.quantity, ingredient.unit, ingredient.item || ingredient.productName]
+    .filter(Boolean)
+    .join(" ");
+  const details = [ingredient.brand, ingredient.note].filter(Boolean).join(", ");
+
+  return [base || ingredient.productName || ingredient.item, details ? `(${details})` : ""]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function directionToText(direction: Direction, index: number) {
+  const prefix = `${index + 1}. `;
+  return `${prefix}${direction.section ? `${direction.section}: ` : ""}${direction.instruction}`;
+}
+
+function ingredientTextFromRecipe(recipe: Recipe) {
+  return recipe.ingredients.map(ingredientToLine).join("\n");
+}
+
+function directionTextFromRecipe(recipe: Recipe) {
+  return recipe.directions.map(directionToText).join("\n\n");
+}
+
+function parseIngredientLine(line: string): Ingredient {
+  const trimmedLine = line.trim();
+  const noteMatch = trimmedLine.match(/^(.*?)\s*\((.*?)\)\s*$/);
+  const withoutNote = (noteMatch?.[1] ?? trimmedLine).trim();
+  const note = noteMatch?.[2]?.trim();
+  const quantityMatch = withoutNote.match(
+    /^((?:\d+\s+)?\d+\/\d+|\d+(?:\.\d+)?|[\u00bc\u00bd\u00be\u2153\u2154\u215b\u215c\u215d\u215e])\s+/,
+  );
+  const quantity = quantityMatch?.[1] ?? "";
+  let remaining = quantityMatch ? withoutNote.slice(quantityMatch[0].length).trim() : withoutNote;
+  let unit = "";
+
+  const lowerRemaining = remaining.toLowerCase();
+  const matchedUnit = ingredientUnits.find(
+    (candidateUnit) =>
+      lowerRemaining === candidateUnit || lowerRemaining.startsWith(`${candidateUnit} `),
+  );
+
+  if (matchedUnit) {
+    unit = remaining.slice(0, matchedUnit.length);
+    remaining = remaining.slice(matchedUnit.length).trim();
+  }
+
+  return {
+    quantity,
+    unit,
+    item: remaining || withoutNote,
+    note,
+  };
+}
+
+function parseIngredients(text: string) {
+  return text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map(parseIngredientLine);
+}
+
+function cleanDirectionLine(line: string) {
+  return line
+    .trim()
+    .replace(/^\s*(?:\d+[\).:-]|\-|\*|\u2022)\s*/, "")
+    .trim();
+}
+
+function detectTimerMinutes(instruction: string) {
+  const matches = Array.from(
+    instruction.matchAll(
+      /(\d+(?:\.\d+)?)\s*(hours?|hrs?|hr|h|minutes?|mins?|min|seconds?|secs?|sec)\b/gi,
+    ),
+  );
+
+  if (matches.length === 0) {
+    return undefined;
+  }
+
+  const [firstMatch] = matches;
+  let totalMinutes = durationMatchToMinutes(firstMatch);
+  const secondMatch = matches[1];
+
+  if (
+    secondMatch &&
+    firstMatch.index !== undefined &&
+    secondMatch.index !== undefined &&
+    secondMatch.index - (firstMatch.index + firstMatch[0].length) <= 3
+  ) {
+    totalMinutes += durationMatchToMinutes(secondMatch);
+  }
+
+  return totalMinutes > 0 ? totalMinutes : undefined;
+}
+
+function durationMatchToMinutes(match: RegExpMatchArray) {
+  const value = Number(match[1]);
+  const unit = match[2].toLowerCase();
+
+  if (unit.startsWith("h")) {
+    return value * 60;
+  }
+
+  if (unit.startsWith("sec")) {
+    return value / 60;
+  }
+
+  return value;
+}
+
+function parseDirections(text: string) {
+  return text
+    .split(/\n\s*\n|\r?\n/)
+    .map(cleanDirectionLine)
+    .filter(Boolean)
+    .map((line) => {
+      const sectionMatch = line.match(/^([A-Za-z][A-Za-z\s]{1,28}):\s+(.+)$/);
+      const instruction = sectionMatch?.[2]?.trim() ?? line;
+      const section = sectionMatch?.[1]?.trim();
+
+      return {
+        section,
+        instruction,
+        timerMinutes: detectTimerMinutes(instruction),
+      };
+    });
+}
+
 function cleanRecipe(recipe: Recipe): Recipe {
+  const categoryIds = Array.from(new Set(recipe.categoryIds?.filter(Boolean) ?? []));
+  const categories = Array.from(new Set(recipe.categories?.filter(Boolean) ?? []));
+
   return {
     ...recipe,
     title: recipe.title.trim(),
     description: recipe.description.trim(),
+    category: categories[0] ?? uncategorizedCategoryName,
+    categoryId: categoryIds[0] ?? "",
+    categories,
+    categoryIds,
     cuisine: recipe.cuisine?.trim() || undefined,
     tags: recipe.tags?.map((tag) => tag.trim()).filter(Boolean) ?? [],
     sourceUrl: recipe.sourceUrl?.trim() || undefined,
     coverImageUrl: recipe.coverImageUrl?.trim() || undefined,
     prepTime: recipe.prepTime?.trim() || undefined,
     cookTime: recipe.cookTime?.trim() || undefined,
-    ingredients: recipe.ingredients
-      .map((ingredient) => ({
-        quantity: ingredient.quantity.trim(),
-        unit: ingredient.unit.trim(),
-        item: ingredient.item.trim(),
-        brand: ingredient.brand?.trim() || undefined,
-        productName: ingredient.productName?.trim() || undefined,
-        note: ingredient.note?.trim() || undefined,
-      }))
-      .filter(hasIngredientInput),
-    directions: recipe.directions
-      .map((direction) => ({
-        section: direction.section?.trim() || undefined,
-        instruction: direction.instruction.trim(),
-        timerMinutes: direction.timerMinutes,
-      }))
-      .filter((direction) => direction.instruction),
+    ingredients: recipe.ingredients.filter((ingredient) => ingredient.item.trim()),
+    directions: recipe.directions.filter((direction) => direction.instruction.trim()),
     notes: recipe.notes?.trim() ?? "",
   };
-}
-
-function hasIngredientInput(ingredient: Ingredient) {
-  return Boolean(
-    ingredient.quantity.trim() ||
-      ingredient.unit.trim() ||
-      ingredient.item.trim() ||
-      ingredient.brand?.trim() ||
-      ingredient.productName?.trim() ||
-      ingredient.note?.trim(),
-  );
-}
-
-function hasDirectionInput(direction: Direction) {
-  return Boolean(
-    direction.section?.trim() || direction.instruction.trim() || direction.timerMinutes,
-  );
 }
 
 export function AddRecipeForm({
@@ -135,53 +272,54 @@ export function AddRecipeForm({
 }: AddRecipeFormProps) {
   const router = useRouter();
   const { addRecipe, categories, updateRecipe } = useRecipes();
-  const initialRecipe = recipe ?? createBlankRecipe();
-  const [saved, setSaved] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | undefined>();
-  const [warning, setWarning] = useState<string | undefined>();
-  const [emptyStructureAcknowledged, setEmptyStructureAcknowledged] = useState(false);
+  const initialRecipe = recipe ? recipeWithCategoryArrays(recipe) : createBlankRecipe();
   const [coverImageFile, setCoverImageFile] = useState<File | undefined>();
+  const [emptyStructureAcknowledged, setEmptyStructureAcknowledged] = useState(false);
+  const [error, setError] = useState<string | undefined>();
   const [formRecipe, setFormRecipe] = useState<Recipe>(initialRecipe);
+  const [ingredientsText, setIngredientsText] = useState(ingredientTextFromRecipe(initialRecipe));
+  const [directionsText, setDirectionsText] = useState(directionTextFromRecipe(initialRecipe));
+  const [isSaving, setIsSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [tagsText, setTagsText] = useState(initialRecipe.tags?.join(", ") ?? "");
+  const [warning, setWarning] = useState<string | undefined>();
   const isEditing = mode === "edit";
+  const selectedCategoryIds = formRecipe.categoryIds?.length
+    ? formRecipe.categoryIds
+    : formRecipe.categoryId
+      ? [formRecipe.categoryId]
+      : [];
+  const parsedDirections = parseDirections(directionsText);
+  const detectedTimers = parsedDirections.filter((direction) => direction.timerMinutes);
 
   function updateField<Key extends keyof Recipe>(key: Key, value: Recipe[Key]) {
-    if (key === "ingredients" || key === "directions") {
-      setEmptyStructureAcknowledged(false);
-      setWarning(undefined);
-    }
-
     setFormRecipe((currentRecipe) => ({
       ...currentRecipe,
       [key]: value,
     }));
   }
 
-  function updateIngredient<Key extends keyof Ingredient>(
-    index: number,
-    key: Key,
-    value: Ingredient[Key],
-  ) {
-    updateField(
-      "ingredients",
-      formRecipe.ingredients.map((ingredient, ingredientIndex) =>
-        ingredientIndex === index ? { ...ingredient, [key]: value } : ingredient,
-      ),
-    );
-  }
+  function toggleCategory(categoryId: string) {
+    const selectedCategory = categories.find((category) => category.id === categoryId);
 
-  function updateDirection<Key extends keyof Direction>(
-    index: number,
-    key: Key,
-    value: Direction[Key],
-  ) {
-    updateField(
-      "directions",
-      formRecipe.directions.map((direction, directionIndex) =>
-        directionIndex === index ? { ...direction, [key]: value } : direction,
-      ),
-    );
+    if (!selectedCategory) {
+      return;
+    }
+
+    const nextCategoryIds = selectedCategoryIds.includes(categoryId)
+      ? selectedCategoryIds.filter((id) => id !== categoryId)
+      : [...selectedCategoryIds, categoryId];
+    const nextCategories = nextCategoryIds
+      .map((id) => categories.find((category) => category.id === id)?.name)
+      .filter((name): name is CategoryName => Boolean(name));
+
+    setFormRecipe((currentRecipe) => ({
+      ...currentRecipe,
+      category: nextCategories[0] ?? uncategorizedCategoryName,
+      categoryId: nextCategoryIds[0] ?? "",
+      categories: nextCategories,
+      categoryIds: nextCategoryIds,
+    }));
   }
 
   async function submitRecipe(event: FormEvent<HTMLFormElement>) {
@@ -196,31 +334,14 @@ export function AddRecipeForm({
         .split(",")
         .map((tag) => tag.trim())
         .filter(Boolean),
-      ingredients: formRecipe.ingredients.length ? formRecipe.ingredients : [emptyIngredient()],
-      directions: formRecipe.directions.length ? formRecipe.directions : [emptyDirection()],
+      ingredients: parseIngredients(ingredientsText),
+      directions: parseDirections(directionsText),
     });
-
-    const incompleteIngredient = cleanedRecipe.ingredients.find((ingredient) => !ingredient.item);
-    const incompleteDirection = formRecipe.directions.find(
-      (direction) => hasDirectionInput(direction) && !direction.instruction.trim(),
-    );
     const hasRecipeStructure =
       cleanedRecipe.ingredients.length > 0 || cleanedRecipe.directions.length > 0;
 
     if (!cleanedRecipe.title) {
       setError("Recipe title is required.");
-      setIsSaving(false);
-      return;
-    }
-
-    if (incompleteIngredient) {
-      setError("Ingredient item is required for any ingredient row you keep.");
-      setIsSaving(false);
-      return;
-    }
-
-    if (incompleteDirection) {
-      setError("Direction instruction is required for any direction row you keep.");
       setIsSaving(false);
       return;
     }
@@ -275,7 +396,7 @@ export function AddRecipeForm({
             <div>
               <p className="font-serif text-xl text-stone-950">Recipe draft</p>
               <p className="text-sm font-medium text-stone-500">
-                {saved ? "Saved in your cookbook" : "Ready to save"}
+                {saved ? "Saved in your cookbook" : "Plain text, parsed on save"}
               </p>
             </div>
           </div>
@@ -294,36 +415,40 @@ export function AddRecipeForm({
               required
               value={formRecipe.title}
             />
-            <label className="space-y-2">
-              <span className="text-sm font-bold text-stone-700">Category</span>
-              <select
-                className={inputClassName}
-                disabled={categories.length === 0}
-                onChange={(event) => {
-                  const selectedCategory = categories.find(
-                    (category) => category.id === event.target.value,
+            <div className="space-y-2">
+              <span className="text-sm font-bold text-stone-700">Categories</span>
+              <div className="flex min-h-12 flex-wrap gap-2 rounded-lg border border-stone-200 bg-white px-3 py-2">
+                {categories.length === 0 ? (
+                  <p className="py-1 text-sm font-semibold text-stone-500">
+                    Create categories from the Recipes page.
+                  </p>
+                ) : null}
+                {categories.map((category) => {
+                  const selected = selectedCategoryIds.includes(category.id);
+
+                  return (
+                    <button
+                      className={`min-h-8 rounded-full px-3 text-sm font-bold ring-1 transition ${
+                        selected
+                          ? "bg-stone-950 text-white ring-stone-950"
+                          : "bg-stone-50 text-stone-600 ring-stone-200 hover:bg-stone-100"
+                      }`}
+                      key={category.id}
+                      onClick={() => toggleCategory(category.id)}
+                      type="button"
+                    >
+                      {category.name}
+                    </button>
                   );
-                  updateField("categoryId", event.target.value);
-                  updateField(
-                    "category",
-                    (selectedCategory?.name ?? event.target.value) as CategoryName,
-                  );
-                }}
-                value={formRecipe.categoryId}
-              >
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+                })}
+              </div>
+            </div>
           </div>
 
           <label className="space-y-2">
             <span className="text-sm font-bold text-stone-700">Description</span>
             <textarea
-              className={`${textareaClassName} min-h-28`}
+              className={`${textareaClassName} min-h-24`}
               onChange={(event) => updateField("description", event.target.value)}
               placeholder="What makes this recipe worth saving?"
               value={formRecipe.description}
@@ -369,27 +494,21 @@ export function AddRecipeForm({
             </label>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-[1fr_1fr_1fr]">
             <NumberField
               label="Servings"
               min={1}
               onChange={(value) => updateField("servings", value)}
               value={formRecipe.servings}
             />
-            <NumberField
+            <RatingField
               label="Aarav rating"
-              max={10}
-              min={1}
               onChange={(value) => updateField("aaravRating", value)}
-              step={0.1}
               value={formRecipe.aaravRating}
             />
-            <NumberField
+            <RatingField
               label="Sophie rating"
-              max={10}
-              min={1}
               onChange={(value) => updateField("sophieRating", value)}
-              step={0.1}
               value={formRecipe.sophieRating}
             />
           </div>
@@ -402,135 +521,45 @@ export function AddRecipeForm({
           />
 
           <FormSectionTitle title="Ingredients" />
-          <div className="space-y-3">
-            {formRecipe.ingredients.map((ingredient, index) => (
-              <div
-                className="rounded-lg border border-stone-200 bg-stone-50/70 p-3"
-                key={`ingredient-${index}`}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-bold text-stone-700">Ingredient {index + 1}</p>
-                  <button
-                    aria-label={`Remove ingredient ${index + 1}`}
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-3 text-sm font-bold text-stone-500 transition hover:text-red-700"
-                    onClick={() =>
-                      updateField(
-                        "ingredients",
-                        formRecipe.ingredients.filter(
-                          (_, ingredientIndex) => ingredientIndex !== index,
-                        ),
-                      )
-                    }
-                    type="button"
-                  >
-                    <Trash2 aria-hidden="true" className="h-4 w-4" />
-                    Remove
-                  </button>
-                </div>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                  <TextField
-                    label="Item"
-                    onChange={(value) => updateIngredient(index, "item", value)}
-                    placeholder="rice"
-                    value={ingredient.item}
-                  />
-                  <TextField
-                    label="Quantity"
-                    onChange={(value) => updateIngredient(index, "quantity", value)}
-                    placeholder="1"
-                    value={ingredient.quantity}
-                  />
-                  <TextField
-                    label="Unit"
-                    onChange={(value) => updateIngredient(index, "unit", value)}
-                    placeholder="cup"
-                    value={ingredient.unit}
-                  />
-                  <TextField
-                    label="Brand"
-                    onChange={(value) => updateIngredient(index, "brand", value)}
-                    placeholder="Kikkoman"
-                    value={ingredient.brand ?? ""}
-                  />
-                  <TextField
-                    label="Product name"
-                    onChange={(value) => updateIngredient(index, "productName", value)}
-                    placeholder="low sodium soy sauce"
-                    value={ingredient.productName ?? ""}
-                  />
-                  <TextField
-                    label="Note"
-                    onChange={(value) => updateIngredient(index, "note", value)}
-                    placeholder="rinsed"
-                    value={ingredient.note ?? ""}
-                  />
-                </div>
-              </div>
-            ))}
-            <AddRowButton
-              label="Add ingredient"
-              onClick={() => updateField("ingredients", [...formRecipe.ingredients, emptyIngredient()])}
+          <label className="space-y-2">
+            <span className="text-sm font-bold text-stone-700">One ingredient per line</span>
+            <textarea
+              className={`${textareaClassName} min-h-72 font-mono text-[0.95rem] leading-7`}
+              onChange={(event) => {
+                setIngredientsText(event.target.value);
+                setEmptyStructureAcknowledged(false);
+                setWarning(undefined);
+              }}
+              placeholder={"2 cups all-purpose flour\n1 tsp baking powder\n1/2 cup sugar\nUnsalted butter, for the pan"}
+              value={ingredientsText}
             />
-          </div>
+          </label>
 
           <FormSectionTitle title="Directions" />
-          <div className="space-y-3">
-            {formRecipe.directions.map((direction, index) => (
-              <div
-                className="rounded-lg border border-stone-200 bg-stone-50/70 p-3"
-                key={`direction-${index}`}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-bold text-stone-700">Direction {index + 1}</p>
-                  <button
-                    aria-label={`Remove direction ${index + 1}`}
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-3 text-sm font-bold text-stone-500 transition hover:text-red-700"
-                    onClick={() =>
-                      updateField(
-                        "directions",
-                        formRecipe.directions.filter(
-                          (_, directionIndex) => directionIndex !== index,
-                        ),
-                      )
-                    }
-                    type="button"
-                  >
-                    <Trash2 aria-hidden="true" className="h-4 w-4" />
-                    Remove
-                  </button>
-                </div>
-                <div className="mt-3 grid gap-3 lg:grid-cols-[0.9fr_1.8fr_0.7fr]">
-                  <TextField
-                    label="Section"
-                    onChange={(value) => updateDirection(index, "section", value)}
-                    placeholder="Sauce"
-                    value={direction.section ?? ""}
-                  />
-                  <label className="space-y-2">
-                    <span className="text-sm font-bold text-stone-700">Instruction</span>
-                    <textarea
-                      className={`${textareaClassName} min-h-24`}
-                      onChange={(event) =>
-                        updateDirection(index, "instruction", event.target.value)
-                      }
-                      placeholder="Simmer gently until glossy"
-                      value={direction.instruction}
-                    />
-                  </label>
-                  <NumberField
-                    label="Timer"
-                    min={0}
-                    onChange={(value) => updateDirection(index, "timerMinutes", value)}
-                    value={direction.timerMinutes}
-                  />
-                </div>
-              </div>
-            ))}
-            <AddRowButton
-              label="Add direction"
-              onClick={() => updateField("directions", [...formRecipe.directions, emptyDirection()])}
+          <label className="space-y-2">
+            <span className="text-sm font-bold text-stone-700">
+              Paste or type the method
+            </span>
+            <textarea
+              className={`${textareaClassName} min-h-96 text-base leading-7`}
+              onChange={(event) => {
+                setDirectionsText(event.target.value);
+                setEmptyStructureAcknowledged(false);
+                setWarning(undefined);
+              }}
+              placeholder={"1. Preheat oven to 350 degrees F.\n\n2. Mix the dry ingredients.\n\n3. Bake for 40 minutes, then cool for 15 minutes."}
+              value={directionsText}
             />
-          </div>
+          </label>
+          {detectedTimers.length > 0 ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-900">
+              Detected timers:{" "}
+              {detectedTimers
+                .map((direction) => formatTimerMinutes(direction.timerMinutes))
+                .filter(Boolean)
+                .join(", ")}
+            </div>
+          ) : null}
 
           <FormSectionTitle title="Notes" />
           <label className="space-y-2">
@@ -719,15 +748,21 @@ function NumberField({
   );
 }
 
-function AddRowButton({ label, onClick }: { label: string; onClick: () => void }) {
+function RatingField({
+  label,
+  onChange,
+  value,
+}: {
+  label: string;
+  onChange: (value: number | undefined) => void;
+  value?: number;
+}) {
   return (
-    <button
-      className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-stone-200 bg-white px-4 text-sm font-bold text-stone-700 shadow-sm transition hover:bg-stone-50"
-      onClick={onClick}
-      type="button"
-    >
-      <Plus aria-hidden="true" className="h-4 w-4" />
-      {label}
-    </button>
+    <div className="space-y-2">
+      <span className="text-sm font-bold text-stone-700">{label}</span>
+      <div className="flex h-12 items-center rounded-lg border border-stone-200 bg-white px-3">
+        <StarRating label={label} onChange={onChange} value={value} />
+      </div>
+    </div>
   );
 }

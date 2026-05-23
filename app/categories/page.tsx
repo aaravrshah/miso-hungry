@@ -1,5 +1,5 @@
-import { CategoriesClient } from "@/components/CategoriesClient";
+import { redirect } from "next/navigation";
 
 export default function CategoriesPage() {
-  return <CategoriesClient />;
+  redirect("/recipes");
 }

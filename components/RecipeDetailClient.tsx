@@ -2,18 +2,13 @@
 
 import {
   ArrowLeft,
-  CalendarDays,
-  Clock3,
   ExternalLink,
   Pencil,
   Plus,
   Save,
-  Star,
   Timer,
   Trash2,
-  Users,
   Utensils,
-  type LucideIcon,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -28,8 +23,16 @@ import {
 } from "@/components/CookingMode";
 import { RecipeGrid } from "@/components/RecipeGrid";
 import { useRecipes } from "@/components/RecipeStore";
+import { StarRating } from "@/components/StarRating";
 import type { CookedBy, CookLog, CookLogInput } from "@/lib/firebase/schema";
-import { averageRating, formatRecipeDate, type Recipe } from "@/lib/recipes";
+import {
+  averageRating,
+  formatRecipeDate,
+  formatRating,
+  formatTimerMinutes,
+  getRecipeCategoryNames,
+  type Recipe,
+} from "@/lib/recipes";
 import { todayString } from "@/lib/services/helpers";
 
 type RecipeDetailClientProps = {
@@ -39,10 +42,6 @@ type RecipeDetailClientProps = {
 const tabs = ["Overview", "Ingredients", "Directions", "Notes", "Cook History"] as const;
 type DetailTab = (typeof tabs)[number];
 const cookedByOptions: CookedBy[] = ["Aarav", "Sophie", "Both"];
-
-function formatRating(value?: number) {
-  return typeof value === "number" ? `${value.toFixed(1)}/10` : "Not rated";
-}
 
 export function RecipeDetailClient({ recipeId }: RecipeDetailClientProps) {
   const router = useRouter();
@@ -55,13 +54,20 @@ export function RecipeDetailClient({ recipeId }: RecipeDetailClientProps) {
   const [cookingProgress, setCookingProgress] = useState(() => createCookingProgress());
   const [editing, setEditing] = useState(false);
   const recipe = recipes.find((item) => item.id === recipeId);
+  const recipeCategories = recipe ? getRecipeCategoryNames(recipe) : [];
   const cookingRecipeId = recipe?.id ?? "";
   const cookingIngredientCount = recipe?.ingredients.length ?? 0;
   const cookingDirectionCount = recipe?.directions.length ?? 0;
   const rating = recipe ? averageRating(recipe) : undefined;
   const relatedRecipes = recipe
     ? recipes
-        .filter((item) => item.category === recipe.category && item.id !== recipe.id)
+        .filter(
+          (item) =>
+            item.id !== recipe.id &&
+            getRecipeCategoryNames(item).some((category) =>
+              recipeCategories.includes(category),
+            ),
+        )
         .slice(0, 3)
     : [];
 
@@ -224,55 +230,49 @@ export function RecipeDetailClient({ recipeId }: RecipeDetailClientProps) {
         </p>
       ) : null}
 
-      <section className="overflow-hidden rounded-lg border border-stone-200 bg-white/76 shadow-sm">
-        <div className="grid lg:grid-cols-[1.05fr_0.95fr]">
-          <div className="relative min-h-[22rem] bg-stone-200 lg:min-h-[34rem]">
+      <section className="rounded-lg border border-stone-200 bg-white/76 p-4 shadow-sm sm:p-5">
+        <div className="grid gap-4 md:grid-cols-[9rem_1fr]">
+          <div className="relative aspect-square overflow-hidden rounded-lg bg-stone-200">
             {recipe.coverImageUrl ? (
               <Image
                 alt={recipe.title}
                 className="h-full w-full object-cover"
                 fill
                 priority
-                sizes="(min-width: 1024px) 50vw, 92vw"
+                sizes="9rem"
                 src={recipe.coverImageUrl}
               />
             ) : (
-              <div className="grid h-full min-h-[22rem] place-items-center bg-stone-100 text-stone-400">
+              <div className="grid h-full place-items-center bg-stone-100 text-stone-400">
                 <Utensils aria-hidden="true" className="h-12 w-12" />
               </div>
             )}
           </div>
-          <div className="flex flex-col justify-between gap-8 p-5 sm:p-7">
-            <div>
-              <CategoryPill active name={recipe.category} />
-              <h1 className="mt-4 font-serif text-4xl leading-tight text-stone-950 sm:text-6xl">
-                {recipe.title}
-              </h1>
-              <p className="mt-5 text-base leading-7 text-stone-600 sm:text-lg">
-                {recipe.description || recipe.notes}
-              </p>
+          <div className="min-w-0">
+            <h1 className="font-serif text-4xl leading-tight text-stone-950 sm:text-5xl">
+              {recipe.title}
+            </h1>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <StarRating size="lg" value={rating} />
+              <div className="flex flex-wrap gap-2">
+                {recipeCategories.map((category) => (
+                  <CategoryPill className="min-h-8 px-3 py-1 text-xs" key={category} name={category} />
+                ))}
+              </div>
             </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <DetailMetric
-                icon={Star}
-                label="Rating"
-                value={rating ? `${rating.toFixed(1)}/10` : "New"}
-              />
-              <DetailMetric
-                icon={CalendarDays}
-                label="Last made"
-                value={formatRecipeDate(recipe.lastMadeDate)}
-              />
-              <DetailMetric icon={Clock3} label="Prep" value={recipe.prepTime || "Not set"} />
-              <DetailMetric
-                icon={Users}
-                label="Serves"
-                value={recipe.servings ? `${recipe.servings}` : "Not set"}
-              />
+            <p className="mt-3 text-sm leading-6 text-stone-600">
+              {recipe.description || recipe.notes}
+            </p>
+            <div className="mt-4 flex flex-wrap gap-x-3 gap-y-2 text-sm text-stone-700">
+              <strong>Prep</strong> {recipe.prepTime || "Not set"}
+              <span aria-hidden="true">&bull;</span>
+              <strong>Cook</strong> {recipe.cookTime || "Not set"}
+              <span aria-hidden="true">&bull;</span>
+              <strong>Servings</strong> {recipe.servings ? `${recipe.servings}` : "Not set"}
+              <span aria-hidden="true">&bull;</span>
+              <strong>Difficulty</strong> {recipe.difficulty ?? "Not set"}
             </div>
-
-            <div className="flex flex-wrap gap-2">
+            <div className="mt-4 flex flex-wrap gap-2">
               {(recipe.tags ?? []).map((tag) => (
                 <span
                   className="rounded-full bg-stone-100 px-3 py-1.5 text-sm font-semibold text-stone-600"
@@ -283,9 +283,6 @@ export function RecipeDetailClient({ recipeId }: RecipeDetailClientProps) {
               ))}
               <span className="rounded-full bg-stone-100 px-3 py-1.5 text-sm font-semibold text-stone-600">
                 {recipe.cuisine || "Cuisine TBD"}
-              </span>
-              <span className="rounded-full bg-stone-100 px-3 py-1.5 text-sm font-semibold text-stone-600">
-                {recipe.difficulty ?? "Difficulty TBD"}
               </span>
             </div>
           </div>
@@ -330,24 +327,6 @@ export function RecipeDetailClient({ recipeId }: RecipeDetailClientProps) {
   );
 }
 
-type DetailMetricProps = {
-  icon: LucideIcon;
-  label: string;
-  value: string;
-};
-
-function DetailMetric({ icon: Icon, label, value }: DetailMetricProps) {
-  return (
-    <div className="rounded-lg bg-stone-50 p-4 ring-1 ring-stone-200">
-      <Icon aria-hidden="true" className="h-5 w-5 text-[var(--tomato)]" />
-      <p className="mt-3 text-xs font-bold uppercase tracking-[0.16em] text-stone-400">
-        {label}
-      </p>
-      <p className="mt-1 font-semibold text-stone-950">{value}</p>
-    </div>
-  );
-}
-
 function OverviewSection({ recipe }: { recipe: Recipe }) {
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -384,10 +363,10 @@ function IngredientsSection({ recipe }: { recipe: Recipe }) {
   return (
     <div>
       <h2 className="font-serif text-3xl text-stone-950">Ingredients</h2>
-      <ul className="mt-5 space-y-3">
+      <ul className="mt-5 divide-y divide-stone-200 border-y border-stone-200">
         {recipe.ingredients.map((ingredient, index) => (
           <li
-            className="grid gap-2 rounded-lg bg-stone-50 p-3 text-sm text-stone-700 ring-1 ring-stone-200 sm:grid-cols-[8rem_1fr]"
+            className="grid gap-2 py-3 text-lg leading-7 text-stone-800 sm:grid-cols-[8rem_1fr]"
             key={`${ingredient.item}-${index}`}
           >
             <span className="font-bold text-stone-950">
@@ -416,9 +395,9 @@ function DirectionsSection({ recipe }: { recipe: Recipe }) {
   return (
     <div>
       <h2 className="font-serif text-3xl text-stone-950">Directions</h2>
-      <ol className="mt-5 space-y-4">
+      <ol className="mt-5 space-y-5">
         {recipe.directions.map((direction, index) => (
-          <li className="flex gap-4 text-sm leading-6 text-stone-700" key={`${index}-${direction.instruction}`}>
+          <li className="flex gap-4 text-lg leading-8 text-stone-800" key={`${index}-${direction.instruction}`}>
             <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-stone-950 text-sm font-bold text-white">
               {index + 1}
             </span>
@@ -432,7 +411,7 @@ function DirectionsSection({ recipe }: { recipe: Recipe }) {
               {direction.timerMinutes ? (
                 <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800 ring-1 ring-amber-200">
                   <Timer aria-hidden="true" className="h-3.5 w-3.5" />
-                  {direction.timerMinutes} min
+                  {formatTimerMinutes(direction.timerMinutes)}
                 </p>
               ) : null}
             </div>
@@ -478,15 +457,6 @@ function cookLogToInput(cookLog: CookLog): CookLogInput {
     changesNextTime: cookLog.changesNextTime ?? "",
     imageUrl: cookLog.imageUrl ?? "",
   };
-}
-
-function numberFromInput(value: string) {
-  if (!value) {
-    return undefined;
-  }
-
-  const parsed = Number(value);
-  return Number.isNaN(parsed) ? undefined : parsed;
 }
 
 function CookHistorySection({ recipe }: { recipe: Recipe }) {
@@ -595,7 +565,7 @@ function CookHistorySection({ recipe }: { recipe: Recipe }) {
         <InfoTile
           label="Average rating"
           value={
-            averageRating(recipe) ? `${averageRating(recipe)?.toFixed(1)}/10` : "Not rated"
+            averageRating(recipe) ? `${averageRating(recipe)?.toFixed(1)}/5` : "Not rated"
           }
         />
       </div>
@@ -644,34 +614,26 @@ function CookHistorySection({ recipe }: { recipe: Recipe }) {
               ))}
             </select>
           </label>
-          <label className="space-y-2">
+          <div className="space-y-2">
             <span className="text-sm font-bold text-stone-700">Aarav rating</span>
-            <input
-              className={historyInputClassName}
-              max={10}
-              min={1}
-              onChange={(event) =>
-                updateFormField("aaravRating", numberFromInput(event.target.value))
-              }
-              step={0.5}
-              type="number"
-              value={formInput.aaravRating ?? ""}
-            />
-          </label>
-          <label className="space-y-2">
+            <div className="flex h-12 items-center rounded-lg border border-stone-200 bg-white px-3">
+              <StarRating
+                label="Aarav rating"
+                onChange={(value) => updateFormField("aaravRating", value)}
+                value={formInput.aaravRating}
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
             <span className="text-sm font-bold text-stone-700">Sophie rating</span>
-            <input
-              className={historyInputClassName}
-              max={10}
-              min={1}
-              onChange={(event) =>
-                updateFormField("sophieRating", numberFromInput(event.target.value))
-              }
-              step={0.5}
-              type="number"
-              value={formInput.sophieRating ?? ""}
-            />
-          </label>
+            <div className="flex h-12 items-center rounded-lg border border-stone-200 bg-white px-3">
+              <StarRating
+                label="Sophie rating"
+                onChange={(value) => updateFormField("sophieRating", value)}
+                value={formInput.sophieRating}
+              />
+            </div>
+          </div>
         </div>
 
         <div className="grid gap-3 md:grid-cols-2">

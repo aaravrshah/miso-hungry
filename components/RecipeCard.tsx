@@ -1,8 +1,15 @@
-import { CalendarDays, ChefHat, Flame, Star } from "lucide-react";
+import { CalendarDays, ChefHat, Flame } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { averageRating, formatRecipeDate, type Recipe } from "@/lib/recipes";
 import { CategoryPill } from "@/components/CategoryPill";
+import { StarRating } from "@/components/StarRating";
+import {
+  averageRating,
+  formatRecipeDate,
+  formatRating,
+  getRecipeCategoryNames,
+  type Recipe,
+} from "@/lib/recipes";
 
 type RecipeCardProps = {
   recipe: Recipe;
@@ -10,6 +17,7 @@ type RecipeCardProps = {
 
 export function RecipeCard({ recipe }: RecipeCardProps) {
   const rating = averageRating(recipe);
+  const recipeCategories = getRecipeCategoryNames(recipe);
 
   return (
     <Link
@@ -34,14 +42,26 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
       <div className="space-y-4 p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 space-y-2">
-            <CategoryPill className="min-h-8 px-3 py-1 text-xs" name={recipe.category} />
+            <div className="flex flex-wrap gap-1.5">
+              {recipeCategories.slice(0, 2).map((category) => (
+                <CategoryPill
+                  className="min-h-8 px-3 py-1 text-xs"
+                  key={category}
+                  name={category}
+                />
+              ))}
+              {recipeCategories.length > 2 ? (
+                <span className="inline-flex min-h-8 items-center rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold text-stone-600 ring-1 ring-stone-200">
+                  +{recipeCategories.length - 2}
+                </span>
+              ) : null}
+            </div>
             <h3 className="line-clamp-2 font-serif text-xl leading-tight text-stone-950">
               {recipe.title}
             </h3>
           </div>
-          <div className="flex shrink-0 items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-sm font-bold text-amber-700 ring-1 ring-amber-200">
-            <Star aria-hidden="true" className="h-4 w-4 fill-current" />
-            <span>{rating ? `${rating.toFixed(1)}/10` : "New"}</span>
+          <div className="shrink-0 rounded-full bg-amber-50 px-2.5 py-1 ring-1 ring-amber-200">
+            <StarRating size="sm" value={rating} />
           </div>
         </div>
         <p className="line-clamp-2 text-sm leading-6 text-stone-600">{recipe.description}</p>
@@ -49,12 +69,12 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
           <div className="flex flex-wrap gap-2 text-xs font-bold text-stone-600">
             {typeof recipe.aaravRating === "number" ? (
               <span className="rounded-full bg-stone-100 px-2.5 py-1">
-                Aarav {recipe.aaravRating.toFixed(1)}
+                Aarav {formatRating(recipe.aaravRating)}
               </span>
             ) : null}
             {typeof recipe.sophieRating === "number" ? (
               <span className="rounded-full bg-stone-100 px-2.5 py-1">
-                Sophie {recipe.sophieRating.toFixed(1)}
+                Sophie {formatRating(recipe.sophieRating)}
               </span>
             ) : null}
           </div>

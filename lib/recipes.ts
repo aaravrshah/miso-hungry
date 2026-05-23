@@ -8,9 +8,14 @@ export type Category = {
   slug: string;
   description: string;
   accent: string;
+  coverImageUrl?: string;
+  coverImagePath?: string;
+  sortOrder?: number;
   isDefault?: boolean;
   createdBy?: string;
   createdByDisplayName?: string;
+  updatedBy?: string;
+  updatedByDisplayName?: string;
 };
 
 export type Ingredient = {
@@ -34,6 +39,8 @@ export type Recipe = {
   description: string;
   categoryId: string;
   category: CategoryName;
+  categoryIds?: string[];
+  categories?: CategoryName[];
   tags?: string[];
   cuisine?: string;
   prepTime?: string;
@@ -57,7 +64,9 @@ export type Recipe = {
   updatedByDisplayName?: string;
 };
 
-export const defaultCategories: Category[] = [
+export const uncategorizedCategoryName = "Uncategorized";
+
+export const categoryTonePresets: Category[] = [
   {
     accent: "bg-rose-100 text-rose-800 ring-rose-200",
     description: "Soft cakes, spoonable sweets, and late-night treats.",
@@ -117,19 +126,73 @@ export const defaultCategories: Category[] = [
 ];
 
 export function getCategoryByName(name: CategoryName) {
-  return defaultCategories.find((category) => category.name === name);
+  return categoryTonePresets.find((category) => category.name === name);
+}
+
+export function getRecipeCategoryIds(recipe: Recipe) {
+  const ids = recipe.categoryIds?.length ? recipe.categoryIds : [recipe.categoryId];
+  return ids.filter(Boolean);
+}
+
+export function getRecipeCategoryNames(recipe: Recipe) {
+  const names = recipe.categories?.length ? recipe.categories : [recipe.category];
+  return names.filter(Boolean);
+}
+
+export function recipeMatchesCategory(recipe: Recipe, categoryId: string, categoryName?: string) {
+  const categoryIds = getRecipeCategoryIds(recipe);
+  const categoryNames = getRecipeCategoryNames(recipe);
+
+  return (
+    categoryIds.includes(categoryId) ||
+    Boolean(categoryName && categoryNames.includes(categoryName))
+  );
+}
+
+export function normalizeRatingToFive(value?: number) {
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    return undefined;
+  }
+
+  const fivePointValue = value > 5 ? value / 2 : value;
+  return Math.min(5, Math.max(1, fivePointValue));
 }
 
 export function averageRating(recipe: Recipe) {
-  const ratings = [recipe.aaravRating, recipe.sophieRating].filter(
-    (rating): rating is number => typeof rating === "number",
-  );
+  const ratings = [recipe.aaravRating, recipe.sophieRating]
+    .map((rating) => normalizeRatingToFive(rating))
+    .filter(
+      (rating): rating is number => typeof rating === "number",
+    );
 
   if (ratings.length === 0) {
     return undefined;
   }
 
   return ratings.reduce((total, rating) => total + rating, 0) / ratings.length;
+}
+
+export function formatRating(value?: number) {
+  const rating = normalizeRatingToFive(value);
+  return typeof rating === "number" ? `${rating.toFixed(1)}/5` : "Not rated";
+}
+
+export function formatTimerMinutes(value?: number) {
+  if (typeof value !== "number" || Number.isNaN(value) || value <= 0) {
+    return "";
+  }
+
+  if (value < 1) {
+    return `${Math.max(1, Math.round(value * 60))} sec`;
+  }
+
+  if (value >= 60) {
+    const hours = Math.floor(value / 60);
+    const minutes = Math.round(value % 60);
+    return minutes ? `${hours} hr ${minutes} min` : `${hours} hr`;
+  }
+
+  return `${Math.round(value)} min`;
 }
 
 export function formatRecipeDate(value?: string) {

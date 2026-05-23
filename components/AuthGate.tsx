@@ -8,7 +8,16 @@ import { useAuth } from "@/components/AuthProvider";
 const supportedUsers: SupportedDisplayName[] = ["Aarav", "Sophie"];
 
 export function AuthGate({ children }: { children: ReactNode }) {
-  const { error, isConfigured, isLoading, missingConfig, profile, signIn, signUp } =
+  const {
+    error,
+    isConfigured,
+    isLoading,
+    missingConfig,
+    profile,
+    signIn,
+    signInWithGoogle,
+    signUp,
+  } =
     useAuth();
   const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
   const [displayName, setDisplayName] = useState<SupportedDisplayName>("Aarav");
@@ -28,6 +37,18 @@ export function AuthGate({ children }: { children: ReactNode }) {
       }
     } catch (authError) {
       setFormError(authError instanceof Error ? authError.message : "Authentication failed.");
+    }
+  }
+
+  async function continueWithGoogle() {
+    setFormError(undefined);
+
+    try {
+      await signInWithGoogle();
+    } catch (authError) {
+      setFormError(
+        authError instanceof Error ? authError.message : "Google sign in failed.",
+      );
     }
   }
 
@@ -78,6 +99,27 @@ export function AuthGate({ children }: { children: ReactNode }) {
             <h1 className="mt-2 font-serif text-4xl leading-tight text-stone-950">
               Sign in to the kitchen
             </h1>
+            <p className="mt-3 text-sm leading-6 text-stone-600">
+              Stay signed in on this device and keep the cookbook synced.
+            </p>
+          </div>
+
+          <button
+            className="inline-flex min-h-12 w-full items-center justify-center gap-3 rounded-lg border border-stone-200 bg-white px-5 text-sm font-bold text-stone-800 shadow-sm transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-70"
+            disabled={isLoading}
+            onClick={continueWithGoogle}
+            type="button"
+          >
+            <span className="grid h-6 w-6 place-items-center rounded-full border border-stone-200 bg-white font-bold text-[#4285f4]">
+              G
+            </span>
+            Continue with Google
+          </button>
+
+          <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-[0.16em] text-stone-400">
+            <span className="h-px flex-1 bg-stone-200" />
+            Email
+            <span className="h-px flex-1 bg-stone-200" />
           </div>
 
           <div className="grid grid-cols-2 gap-2 rounded-lg bg-stone-100 p-1">

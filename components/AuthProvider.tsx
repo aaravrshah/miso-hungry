@@ -15,6 +15,7 @@ import {
   getUserProfile,
   saveUserProfile,
   signInWithEmailPassword,
+  signInWithGoogle as signInWithGoogleProvider,
   signOutUser,
   signUpWithEmailPassword,
   subscribeToAuthState,
@@ -27,6 +28,7 @@ type AuthContextValue = {
   missingConfig: readonly string[];
   profile?: UserProfile;
   signIn: (input: { email: string; password: string }) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   signUp: (input: {
     displayName: SupportedDisplayName | string;
@@ -96,6 +98,21 @@ export function FirebaseAuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const signInWithGoogle = useCallback(async () => {
+    setIsLoading(true);
+    setError(undefined);
+
+    try {
+      const userProfile = await signInWithGoogleProvider();
+      setProfile(userProfile);
+    } catch (authError) {
+      setError(authError instanceof Error ? authError.message : "Unable to sign in with Google.");
+      throw authError;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   const signUp = useCallback(
     async (input: {
       displayName: SupportedDisplayName | string;
@@ -140,10 +157,11 @@ export function FirebaseAuthProvider({ children }: { children: ReactNode }) {
       missingConfig: missingFirebaseConfig,
       profile,
       signIn,
+      signInWithGoogle,
       signOut,
       signUp,
     }),
-    [error, isLoading, profile, signIn, signOut, signUp],
+    [error, isLoading, profile, signIn, signInWithGoogle, signOut, signUp],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

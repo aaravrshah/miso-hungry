@@ -1,9 +1,14 @@
 "use client";
 
 import {
+  browserLocalPersistence,
   createUserWithEmailAndPassword,
+  GoogleAuthProvider,
   onAuthStateChanged,
+  setPersistence,
   signInWithEmailAndPassword,
+  signInWithPopup,
+  signInWithRedirect,
   signOut,
   updateProfile,
   type User,
@@ -16,6 +21,33 @@ import type { SupportedDisplayName, UserProfile } from "@/lib/firebase/schema";
 export function subscribeToAuthState(callback: (user: User | null) => void) {
   const { auth } = getFirebaseServices();
   return onAuthStateChanged(auth, callback);
+}
+
+async function getAuthWithLocalPersistence() {
+  const { auth } = getFirebaseServices();
+  await setPersistence(auth, browserLocalPersistence);
+  return auth;
+}
+
+function shouldUseGoogleRedirect() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
+  const isiOS = /iPad|iPhone|iPod/.test(window.navigator.userAgent);
+
+  return isStandalone || isiOS;
+}
+
+function shouldFallbackToGoogleRedirect(error: unknown) {
+  const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
+
+  return (
+    code === "auth/popup-blocked" ||
+    code === "auth/cancelled-popup-request" ||
+    code === "auth/operation-not-supported-in-this-environment"
+  );
 }
 
 export async function getUserProfile(userId: string) {
@@ -63,7 +95,7 @@ export async function signUpWithEmailPassword({
   email: string;
   password: string;
 }) {
-  const { auth } = getFirebaseServices();
+  const auth = await getAuthWithLocalPersistence();
   const credentials = await createUserWithEmailAndPassword(auth, email, password);
   await updateProfile(credentials.user, { displayName });
   return saveUserProfile(credentials.user, displayName);
@@ -76,8 +108,43 @@ export async function signInWithEmailPassword({
   email: string;
   password: string;
 }) {
-  const { auth } = getFirebaseServices();
+  const auth = await getAuthWithLocalPersistence();
   const credentials = await signInWithEmailAndPassword(auth, email, password);
+  const profile = await getUserProfile(credentials.user.uid);
+
+  if (profile) {
+    return profile;
+  }
+
+  return saveUserProfile(
+    credentials.user,
+    credentials.user.displayName || credentials.user.email || "Aarav",
+  );
+}
+
+export async function signInWithGoogle() {
+  const auth = await getAuthWithLocalPersistence();
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: "select_account" });
+
+  if (shouldUseGoogleRedirect()) {
+    await signInWithRedirect(auth, provider);
+    return undefined;
+  }
+
+  const credentials = await signInWithPopup(auth, provider).catch(async (authError) => {
+    if (shouldFallbackToGoogleRedirect(authError)) {
+      await signInWithRedirect(auth, provider);
+      return undefined;
+    }
+
+    throw authError;
+  });
+
+  if (!credentials) {
+    return undefined;
+  }
+
   const profile = await getUserProfile(credentials.user.uid);
 
   if (profile) {

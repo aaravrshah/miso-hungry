@@ -14,7 +14,6 @@ import {
   setDoc,
   updateDoc,
   where,
-  writeBatch,
 } from "firebase/firestore";
 import {
   deleteObject,
@@ -33,7 +32,7 @@ import type {
   UserProfile,
 } from "@/lib/firebase/schema";
 import {
-  defaultCategories,
+  uncategorizedCategoryName,
   type Category,
   type Recipe,
 } from "@/lib/recipes";
@@ -45,52 +44,78 @@ type CookLogMutationResult = {
   recipe: Recipe;
 };
 
-export async function ensureDefaultCategories() {
-  const { db } = getFirebaseServices();
-  const categoriesRef = collection(db, firebaseCollections.categories);
-  const snapshot = await getDocs(categoriesRef);
+type CategoryInput = {
+  coverImageFile?: File;
+  coverImageUrl?: string;
+  description: string;
+  name: string;
+};
 
-  if (!snapshot.empty) {
-    return;
-  }
+function categoryFromDoc(categoryId: string, data: Partial<Category>) {
+  return {
+    accent: "bg-stone-100 text-stone-800 ring-stone-200",
+    description: "",
+    ...data,
+    id: categoryId,
+    name: data.name ?? "Untitled Category",
+    slug: data.slug ?? categoryId,
+  } as FirestoreCategory;
+}
 
-  const batch = writeBatch(db);
+function sortCategories(categories: Category[]) {
+  return [...categories].sort((first, second) => {
+    const firstOrder = first.sortOrder ?? Number.MAX_SAFE_INTEGER;
+    const secondOrder = second.sortOrder ?? Number.MAX_SAFE_INTEGER;
+    const orderSort = firstOrder - secondOrder;
 
-  defaultCategories.forEach((category) => {
-    batch.set(doc(db, firebaseCollections.categories, category.id), {
-      ...category,
-      isDefault: true,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
+    if (orderSort !== 0) {
+      return orderSort;
+    }
+
+    return first.name.localeCompare(second.name);
   });
-
-  await batch.commit();
 }
 
 export async function fetchCategories() {
   const { db } = getFirebaseServices();
-  await ensureDefaultCategories();
-  const snapshot = await getDocs(
-    query(collection(db, firebaseCollections.categories), orderBy("name", "asc")),
-  );
+  const snapshot = await getDocs(collection(db, firebaseCollections.categories));
 
-  return snapshot.docs.map(
-    (categoryDoc) =>
-      ({
-        id: categoryDoc.id,
-        ...categoryDoc.data(),
-      }) as FirestoreCategory,
+  return sortCategories(
+    snapshot.docs.map((categoryDoc) =>
+      categoryFromDoc(categoryDoc.id, categoryDoc.data() as Partial<Category>),
+    ),
   );
 }
 
+async function uploadCategoryCoverImage({
+  file,
+  categoryId,
+  user,
+}: {
+  file: File;
+  categoryId: string;
+  user: UserProfile;
+}) {
+  const { storage } = getFirebaseServices();
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-");
+  const imagePath = `category-images/${categoryId}/${Date.now()}-${safeName}`;
+  const storageRef = ref(storage, imagePath);
+  await uploadBytes(storageRef, file, { contentType: file.type });
+
+  return {
+    coverImagePath: imagePath,
+    coverImageUrl: await getDownloadURL(storageRef),
+    uploadedBy: user.id,
+  };
+}
+
 export async function createCategory({
+  coverImageFile,
+  coverImageUrl,
   description,
   name,
   user,
-}: {
-  description: string;
-  name: string;
+}: CategoryInput & {
   user: UserProfile;
 }) {
   const { db } = getFirebaseServices();
@@ -100,47 +125,67 @@ export async function createCategory({
   const finalRef = existing.exists()
     ? doc(db, firebaseCollections.categories, `${baseSlug}-${Date.now().toString(36)}`)
     : categoryRef;
+  const currentCategoriesSnapshot = await getDocs(collection(db, firebaseCollections.categories));
+  const uploadedImage = coverImageFile
+    ? await uploadCategoryCoverImage({ categoryId: finalRef.id, file: coverImageFile, user })
+    : undefined;
+  const trimmedCoverImageUrl = coverImageUrl?.trim();
   const category: Category = {
     id: finalRef.id,
     name,
     slug: finalRef.id,
     description,
     accent: "bg-stone-100 text-stone-800 ring-stone-200",
+    coverImagePath: uploadedImage?.coverImagePath,
+    coverImageUrl: uploadedImage?.coverImageUrl ?? (trimmedCoverImageUrl || undefined),
     isDefault: false,
+    sortOrder: currentCategoriesSnapshot.size,
     createdBy: user.id,
     createdByDisplayName: user.displayName,
+    updatedBy: user.id,
+    updatedByDisplayName: user.displayName,
   };
 
-  await setDoc(finalRef, {
-    ...category,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
+  await setDoc(
+    finalRef,
+    removeUndefinedDeep({
+      ...category,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }),
+  );
 
   return category;
 }
 
 export async function updateCategory({
   categoryId,
+  coverImageFile,
+  coverImageUrl,
   description,
   name,
+  sortOrder,
   user,
 }: {
   categoryId: string;
+  coverImageFile?: File;
+  coverImageUrl?: string;
   description: string;
   name: string;
+  sortOrder?: number;
   user: UserProfile;
 }) {
-  const { db } = getFirebaseServices();
+  const { db, storage } = getFirebaseServices();
   const categoryRef = doc(db, firebaseCollections.categories, categoryId);
   const snapshot = await getDoc(categoryRef);
   const existingCategory = snapshot.exists()
-    ? ({
-        id: snapshot.id,
-        ...snapshot.data(),
-      } as Category)
+    ? categoryFromDoc(snapshot.id, snapshot.data() as Partial<Category>)
     : undefined;
-  const updates = {
+  const uploadedImage = coverImageFile
+    ? await uploadCategoryCoverImage({ categoryId, file: coverImageFile, user })
+    : undefined;
+  const trimmedCoverImageUrl = coverImageUrl?.trim();
+  const updates: Record<string, unknown> = {
     name,
     description,
     updatedBy: user.id,
@@ -148,7 +193,30 @@ export async function updateCategory({
     updatedAt: serverTimestamp(),
   };
 
+  if (typeof sortOrder === "number" || typeof existingCategory?.sortOrder === "number") {
+    updates.sortOrder = sortOrder ?? existingCategory?.sortOrder;
+  }
+
+  if (uploadedImage) {
+    updates.coverImagePath = uploadedImage.coverImagePath;
+    updates.coverImageUrl = uploadedImage.coverImageUrl;
+  } else if (coverImageUrl !== undefined) {
+    updates.coverImagePath = deleteField();
+    updates.coverImageUrl = trimmedCoverImageUrl || deleteField();
+  }
+
   await updateDoc(categoryRef, updates);
+
+  if ((uploadedImage || coverImageUrl !== undefined) && existingCategory?.coverImagePath) {
+    await deleteObject(ref(storage, existingCategory.coverImagePath)).catch(() => undefined);
+  }
+
+  await updateRecipesForCategoryRename({
+    categoryId,
+    nextName: name,
+    previousName: existingCategory?.name,
+    user,
+  });
 
   return {
     ...(existingCategory ?? {
@@ -158,6 +226,187 @@ export async function updateCategory({
     }),
     name,
     description,
+    coverImagePath: uploadedImage
+      ? uploadedImage.coverImagePath
+      : coverImageUrl !== undefined
+        ? undefined
+        : existingCategory?.coverImagePath,
+    coverImageUrl: uploadedImage
+      ? uploadedImage.coverImageUrl
+      : coverImageUrl !== undefined
+        ? trimmedCoverImageUrl || undefined
+        : existingCategory?.coverImageUrl,
+    sortOrder: sortOrder ?? existingCategory?.sortOrder,
+    updatedBy: user.id,
+    updatedByDisplayName: user.displayName,
+  };
+}
+
+export async function reorderCategories({
+  categoryIds,
+  user,
+}: {
+  categoryIds: string[];
+  user: UserProfile;
+}) {
+  const { db } = getFirebaseServices();
+
+  await Promise.all(
+    categoryIds.map((categoryId, sortOrder) =>
+      updateDoc(doc(db, firebaseCollections.categories, categoryId), {
+        sortOrder,
+        updatedAt: serverTimestamp(),
+        updatedBy: user.id,
+        updatedByDisplayName: user.displayName,
+      }),
+    ),
+  );
+}
+
+async function updateRecipesForCategoryRename({
+  categoryId,
+  nextName,
+  previousName,
+  user,
+}: {
+  categoryId: string;
+  nextName: string;
+  previousName?: string;
+  user: UserProfile;
+}) {
+  const { db } = getFirebaseServices();
+  const recipesSnapshot = await getDocs(collection(db, firebaseCollections.recipes));
+
+  await Promise.all(
+    recipesSnapshot.docs.map(async (recipeDoc) => {
+      const recipe = recipeFromDoc(recipeDoc.id, recipeDoc.data() as Partial<Recipe>);
+      const categoryIds = recipe.categoryIds?.length
+        ? recipe.categoryIds
+        : recipe.categoryId
+          ? [recipe.categoryId]
+          : [];
+      const categories = recipe.categories?.length
+        ? recipe.categories
+        : recipe.category
+          ? [recipe.category]
+          : [];
+      const usesCategory =
+        categoryIds.includes(categoryId) ||
+        recipe.categoryId === categoryId ||
+        Boolean(previousName && categories.includes(previousName));
+
+      if (!usesCategory) {
+        return;
+      }
+
+      const nextCategories = categories.map((categoryName, index) =>
+        categoryIds[index] === categoryId || categoryName === previousName
+          ? nextName
+          : categoryName,
+      );
+
+      await updateDoc(doc(db, firebaseCollections.recipes, recipeDoc.id), {
+        categories: nextCategories,
+        category: nextCategories[0] ?? uncategorizedCategoryName,
+        updatedAt: serverTimestamp(),
+        updatedBy: user.id,
+        updatedByDisplayName: user.displayName,
+      });
+    }),
+  );
+}
+
+export async function deleteCategory({
+  categoryId,
+  user,
+}: {
+  categoryId: string;
+  user: UserProfile;
+}) {
+  const { db, storage } = getFirebaseServices();
+  const categoryRef = doc(db, firebaseCollections.categories, categoryId);
+  const categorySnapshot = await getDoc(categoryRef);
+  const category = categorySnapshot.exists()
+    ? categoryFromDoc(categorySnapshot.id, categorySnapshot.data() as Partial<Category>)
+    : undefined;
+  const recipesSnapshot = await getDocs(collection(db, firebaseCollections.recipes));
+  const categoryName = category?.name;
+
+  await Promise.all(
+    recipesSnapshot.docs.map(async (recipeDoc) => {
+      const recipe = recipeFromDoc(recipeDoc.id, recipeDoc.data() as Partial<Recipe>);
+      const nextCategoryIds = (recipe.categoryIds ?? [recipe.categoryId]).filter(
+        (id) => id && id !== categoryId,
+      );
+      const nextCategories = (recipe.categories ?? [recipe.category]).filter(
+        (name) => name && name !== categoryName,
+      );
+      const usedCategory =
+        recipe.categoryId === categoryId ||
+        recipe.category === categoryName ||
+        (recipe.categoryIds ?? []).includes(categoryId) ||
+        Boolean(categoryName && (recipe.categories ?? []).includes(categoryName));
+
+      if (!usedCategory) {
+        return;
+      }
+
+      await updateDoc(doc(db, firebaseCollections.recipes, recipeDoc.id), {
+        categories: nextCategories,
+        category: nextCategories[0] ?? uncategorizedCategoryName,
+        categoryId: nextCategoryIds[0] ?? "",
+        categoryIds: nextCategoryIds,
+        updatedAt: serverTimestamp(),
+        updatedBy: user.id,
+        updatedByDisplayName: user.displayName,
+      });
+    }),
+  );
+
+  await deleteDoc(categoryRef);
+
+  if (category?.coverImagePath) {
+    await deleteObject(ref(storage, category.coverImagePath)).catch(() => undefined);
+  }
+}
+
+function recipeFromDoc(recipeId: string, data: Partial<Recipe>) {
+  const categoryIds = data.categoryIds?.length
+    ? data.categoryIds.filter(Boolean)
+    : data.categoryId
+      ? [data.categoryId]
+      : [];
+  const categories = data.categories?.length
+    ? data.categories.filter(Boolean)
+    : data.category
+      ? [data.category]
+      : [];
+
+  return {
+    id: recipeId,
+    ...data,
+    category: data.category ?? categories[0] ?? uncategorizedCategoryName,
+    categoryId: data.categoryId ?? categoryIds[0] ?? "",
+    categories,
+    categoryIds,
+    timesMade: data.timesMade ?? 0,
+  } as FirestoreRecipe;
+}
+
+function normalizeRecipeForSave(recipe: Recipe) {
+  const categoryIds = Array.from(
+    new Set((recipe.categoryIds?.length ? recipe.categoryIds : [recipe.categoryId]).filter(Boolean)),
+  );
+  const categories = Array.from(
+    new Set((recipe.categories?.length ? recipe.categories : [recipe.category]).filter(Boolean)),
+  );
+
+  return {
+    ...recipe,
+    category: categories[0] ?? uncategorizedCategoryName,
+    categoryId: categoryIds[0] ?? "",
+    categories,
+    categoryIds,
   };
 }
 
@@ -167,28 +416,7 @@ export async function fetchRecipes() {
     query(collection(db, firebaseCollections.recipes), orderBy("title", "asc")),
   );
 
-  return snapshot.docs.map(
-    (recipeDoc) =>
-      ({
-        id: recipeDoc.id,
-        ...recipeDoc.data(),
-      }) as FirestoreRecipe,
-  );
-}
-
-export async function fetchRecipesByCategory(categoryId: string) {
-  const { db } = getFirebaseServices();
-  const snapshot = await getDocs(
-    query(collection(db, firebaseCollections.recipes), where("categoryId", "==", categoryId)),
-  );
-
-  return snapshot.docs.map(
-    (recipeDoc) =>
-      ({
-        id: recipeDoc.id,
-        ...recipeDoc.data(),
-      }) as FirestoreRecipe,
-  );
+  return snapshot.docs.map((recipeDoc) => recipeFromDoc(recipeDoc.id, recipeDoc.data()));
 }
 
 async function uploadRecipeCoverImage({
@@ -228,7 +456,7 @@ export async function createRecipe({
     ? await uploadRecipeCoverImage({ file: coverImageFile, recipeId: recipeRef.id, user })
     : undefined;
   const savedRecipe: Recipe = {
-    ...recipe,
+    ...normalizeRecipeForSave(recipe),
     ...uploadedImage,
     id: recipeRef.id,
     createdBy: user.id,
@@ -265,7 +493,7 @@ export async function updateRecipe({
     : undefined;
   const { db } = getFirebaseServices();
   const savedRecipe: Recipe = {
-    ...recipe,
+    ...normalizeRecipeForSave(recipe),
     ...uploadedImage,
     id: recipeId,
     updatedBy: user.id,
@@ -316,7 +544,7 @@ function normalizeRating(value?: number) {
     return undefined;
   }
 
-  return Math.min(10, Math.max(1, value));
+  return Math.min(5, Math.max(1, value));
 }
 
 function cleanCookLogInput(input: CookLogInput): CookLogInput {

@@ -11,7 +11,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, type Dispatch, type SetStateAction } from "react";
-import type { Ingredient, Recipe } from "@/lib/recipes";
+import { formatTimerMinutes, type Ingredient, type Recipe } from "@/lib/recipes";
 
 export type CookingProgress = {
   activeDirectionIndex: number;
@@ -419,7 +419,7 @@ export function CookingMode({
                         type="button"
                       >
                         <Timer aria-hidden="true" className="h-4 w-4" />
-                        Start Timer
+                        Start {formatTimerMinutes(direction.timerMinutes)}
                       </button>
                     ) : null}
                   </div>
@@ -488,7 +488,7 @@ function MobileDirectionStep({
             type="button"
           >
             <Timer aria-hidden="true" className="h-5 w-5" />
-            Start Timer
+            Start {formatTimerMinutes(timerMinutes)}
           </button>
         ) : null}
       </div>
