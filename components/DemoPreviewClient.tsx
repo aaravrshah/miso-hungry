@@ -59,6 +59,7 @@ export function DemoPreviewClient() {
                   ? "bg-stone-950 text-white"
                   : "bg-[#fff8ee] text-stone-700 hover:bg-white"
               }`}
+              data-testid={`demo-view-${view.value}`}
               key={view.value}
               onClick={() => setActiveView(view.value)}
               type="button"

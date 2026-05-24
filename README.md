@@ -11,6 +11,26 @@ npm run dev
 
 Open `http://localhost:3000`.
 
+## UI preview screenshots
+
+The app has a Firebase-free demo route at `http://localhost:3000/demo` for UI
+iteration. Playwright can capture that route across mobile, tablet, and desktop
+without signing in or touching real data.
+
+One-time browser install:
+
+```bash
+npx playwright install chromium
+```
+
+Capture screenshots:
+
+```bash
+npm run screenshots:demo
+```
+
+Screenshots are written to `artifacts/demo-screenshots/` and are ignored by git.
+
 ## Firebase setup
 
 Create `.env.local` from `.env.example` and fill in the `NEXT_PUBLIC_FIREBASE_*`
