@@ -14,8 +14,8 @@ Open `http://localhost:3000`.
 ## Firebase setup
 
 Create `.env.local` from `.env.example` and fill in the `NEXT_PUBLIC_FIREBASE_*`
-values from your Firebase web app settings. Enable Email/Password auth, Cloud
-Firestore, and Firebase Storage in the Firebase console.
+values from your Firebase web app settings. Enable Email/Password auth, Google
+auth, Cloud Firestore, and Firebase Storage in the Firebase console.
 
 Firestore collections used by the app:
 

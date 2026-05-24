@@ -4,22 +4,18 @@ import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { getFirebaseServices } from "@/lib/firebase/client";
 import { firebaseCollections } from "@/lib/firebase/collections";
 import type { DrinkCabinet, UserProfile } from "@/lib/firebase/schema";
+import {
+  formatIngredientDisplayName,
+  normalizeIngredientName,
+  normalizeIngredientNameForMatching,
+} from "@/lib/ingredientRecognition";
 
 export function normalizeDrinkIngredientName(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, " ")
-    .replace(/\s+/g, " ")
-    .replace(/\b(fresh|freshly squeezed|chilled)\b/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  return normalizeIngredientNameForMatching(value);
 }
 
 export function formatDrinkIngredientName(value: string) {
-  const normalized = normalizeDrinkIngredientName(value);
-
-  return normalized.replace(/\b\w/g, (character) => character.toUpperCase());
+  return formatIngredientDisplayName(normalizeDrinkIngredientName(value));
 }
 
 export function parseDrinkIngredientText(value: string) {
@@ -30,7 +26,7 @@ export function parseDrinkIngredientText(value: string) {
     .map(formatDrinkIngredientName)
     .filter(Boolean)
     .filter((ingredient) => {
-      const normalized = normalizeDrinkIngredientName(ingredient);
+      const normalized = normalizeIngredientName(ingredient);
 
       if (seen.has(normalized)) {
         return false;

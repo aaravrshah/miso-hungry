@@ -6,6 +6,7 @@ import { useState, type FormEvent } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { StarRating } from "@/components/StarRating";
 import { useRecipes } from "@/components/RecipeStore";
+import { parseIngredients } from "@/lib/ingredientRecognition";
 import {
   formatTimerMinutes,
   type CategoryName,
@@ -23,52 +24,6 @@ type AddRecipeFormProps = {
 };
 
 const difficulties: Difficulty[] = ["Easy", "Medium", "Hard"];
-
-const ingredientUnits = [
-  "teaspoons",
-  "teaspoon",
-  "tablespoons",
-  "tablespoon",
-  "ounces",
-  "ounce",
-  "pounds",
-  "pound",
-  "grams",
-  "gram",
-  "cups",
-  "cup",
-  "handfuls",
-  "handful",
-  "pinches",
-  "pinch",
-  "dashes",
-  "dash",
-  "splashes",
-  "splash",
-  "bunches",
-  "bunch",
-  "cloves",
-  "clove",
-  "knobs",
-  "knob",
-  "sticks",
-  "stick",
-  "packets",
-  "packet",
-  "scoops",
-  "scoop",
-  "tbsp",
-  "tsp",
-  "cans",
-  "can",
-  "lbs",
-  "lb",
-  "oz",
-  "g",
-  "kg",
-  "ml",
-  "l",
-].sort((first, second) => second.length - first.length);
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -154,47 +109,6 @@ function ingredientTextFromRecipe(recipe: Recipe) {
 
 function directionTextFromRecipe(recipe: Recipe) {
   return recipe.directions.map(directionToText).join("\n\n");
-}
-
-function parseIngredientLine(line: string): Ingredient {
-  const trimmedLine = line.trim();
-  const noteMatch = trimmedLine.match(/^(.*?)\s*\((.*?)\)\s*$/);
-  const withoutNote = (noteMatch?.[1] ?? trimmedLine).trim();
-  const note = noteMatch?.[2]?.trim();
-  const quantityMatch = withoutNote.match(
-    /^((?:\d+\s+)?\d+\/\d+|\d+(?:\.\d+)?|[\u00bc\u00bd\u00be\u2153\u2154\u215b\u215c\u215d\u215e]|a\s+few|few|to\s+taste|(?:a|one)\s+(?:handfuls?|pinches?|dashes?|splashes?|bunches?|cloves?|knobs?|sticks?|packets?|scoops?)|handfuls?|pinches?|dashes?|splashes?|bunches?|cloves?|knobs?|sticks?|packets?|scoops?)\s+/i,
-  );
-  const quantity = quantityMatch?.[1] ?? "";
-  let remaining = quantityMatch ? withoutNote.slice(quantityMatch[0].length).trim() : withoutNote;
-  let unit = "";
-
-  const lowerRemaining = remaining.toLowerCase();
-  const matchedUnit = ingredientUnits.find(
-    (candidateUnit) =>
-      lowerRemaining === candidateUnit || lowerRemaining.startsWith(`${candidateUnit} `),
-  );
-
-  if (matchedUnit) {
-    unit = remaining.slice(0, matchedUnit.length);
-    remaining = remaining.slice(matchedUnit.length).trim();
-  }
-
-  remaining = remaining.replace(/^of\s+/i, "").trim();
-
-  return {
-    quantity,
-    unit,
-    item: remaining || withoutNote,
-    note,
-  };
-}
-
-function parseIngredients(text: string) {
-  return text
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map(parseIngredientLine);
 }
 
 function cleanDirectionLine(line: string) {

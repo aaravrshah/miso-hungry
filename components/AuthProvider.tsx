@@ -12,10 +12,8 @@ import {
 import { isFirebaseConfigured, missingFirebaseConfig } from "@/lib/firebase/client";
 import type { SupportedDisplayName, UserProfile } from "@/lib/firebase/schema";
 import {
-  completeGoogleRedirectSignIn,
   getAuthErrorMessage,
   getUserProfile,
-  preloadGoogleIdentityServices,
   saveUserProfile,
   signInWithEmailPassword,
   signInWithGoogle as signInWithGoogleProvider,
@@ -53,21 +51,6 @@ export function FirebaseAuthProvider({ children }: { children: ReactNode }) {
     }
 
     let active = true;
-    preloadGoogleIdentityServices();
-
-    completeGoogleRedirectSignIn()
-      .then((userProfile) => {
-        if (active && userProfile) {
-          setProfile(userProfile);
-          setIsLoading(false);
-        }
-      })
-      .catch((authError) => {
-        if (active) {
-          setError(getAuthErrorMessage(authError, "Unable to complete Google sign in."));
-          setIsLoading(false);
-        }
-      });
 
     const unsubscribe = subscribeToAuthState(async (user) => {
       if (!user) {

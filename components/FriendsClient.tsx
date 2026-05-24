@@ -182,7 +182,7 @@ export function FriendsClient() {
               <UserLine user={friend} />
               <div className="mt-4 flex gap-2">
                 <Link
-                  className="inline-flex min-h-10 flex-1 items-center justify-center rounded-lg bg-stone-950 px-3 text-sm font-bold text-white"
+                  className="inline-flex min-h-10 flex-1 items-center justify-center rounded-lg border border-stone-200 bg-white px-3 text-sm font-bold text-[var(--tomato)] shadow-sm transition hover:bg-stone-50"
                   href={`/profiles/${friend.id}`}
                 >
                   Profile

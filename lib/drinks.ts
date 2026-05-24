@@ -269,10 +269,17 @@ const aliasLookup: Record<string, string[]> = {
   "simple syrup": ["sugar syrup"],
   "agave syrup": ["agave nectar"],
   "soda water": ["club soda", "sparkling water"],
+  "club soda": ["soda water", "sparkling water"],
   "tonic water": ["tonic"],
   "sweet vermouth": ["vermouth"],
   "angostura bitters": ["bitters"],
+  "orange bitters": ["bitters"],
   "triple sec": ["cointreau", "orange liqueur"],
+  "lemon lime soda": ["sprite", "7up", "7 up", "sierra mist", "starry"],
+  cola: ["coke", "coca cola", "pepsi"],
+  prosecco: ["sparkling wine"],
+  champagne: ["sparkling wine"],
+  "ginger beer": ["ginger ale"],
 };
 
 export function isDrinkRecipe(recipe: Recipe) {

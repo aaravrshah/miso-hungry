@@ -3,14 +3,11 @@
 import {
   browserLocalPersistence,
   createUserWithEmailAndPassword,
-  getRedirectResult,
   GoogleAuthProvider,
   onAuthStateChanged,
   setPersistence,
-  signInWithCredential,
   signInWithEmailAndPassword,
   signInWithPopup,
-  signInWithRedirect,
   signOut,
   updateProfile,
   type User,
@@ -19,39 +16,6 @@ import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { getFirebaseServices } from "@/lib/firebase/client";
 import { firebaseCollections } from "@/lib/firebase/collections";
 import type { SupportedDisplayName, UserProfile } from "@/lib/firebase/schema";
-
-const googleWebClientId = process.env.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID;
-const googleIdentityScriptSrc = "https://accounts.google.com/gsi/client";
-
-type GoogleOAuthTokenResponse = {
-  access_token?: string;
-  error?: string;
-  error_description?: string;
-};
-
-type GoogleOAuthTokenClient = {
-  requestAccessToken: (overrideConfig?: { prompt?: string }) => void;
-};
-
-type GoogleIdentity = {
-  accounts: {
-    oauth2: {
-      initTokenClient: (input: {
-        callback: (response: GoogleOAuthTokenResponse) => void;
-        client_id: string;
-        error_callback?: (error: unknown) => void;
-        prompt?: string;
-        scope: string;
-      }) => GoogleOAuthTokenClient;
-    };
-  };
-};
-
-declare global {
-  interface Window {
-    google?: GoogleIdentity;
-  }
-}
 
 export function subscribeToAuthState(callback: (user: User | null) => void) {
   const { auth } = getFirebaseServices();
@@ -64,37 +28,8 @@ async function getAuthWithLocalPersistence() {
   return auth;
 }
 
-function shouldUseGoogleRedirect() {
-  if (typeof window === "undefined") {
-    return false;
-  }
-
-  const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
-  const isiOS = /iPad|iPhone|iPod/.test(window.navigator.userAgent);
-
-  return isStandalone || isiOS;
-}
-
-function shouldUseGoogleIdentityServices() {
-  if (typeof window === "undefined") {
-    return false;
-  }
-
-  return Boolean(googleWebClientId) && !shouldUseGoogleRedirect();
-}
-
 function getFirebaseErrorCode(error: unknown) {
   return error && typeof error === "object" && "code" in error ? error.code : undefined;
-}
-
-function shouldFallbackToGoogleRedirect(error: unknown) {
-  const code = getFirebaseErrorCode(error);
-
-  return (
-    code === "auth/popup-blocked" ||
-    code === "auth/cancelled-popup-request" ||
-    code === "auth/operation-not-supported-in-this-environment"
-  );
 }
 
 export function getAuthErrorMessage(error: unknown, fallback = "Authentication failed.") {
@@ -105,7 +40,7 @@ export function getAuthErrorMessage(error: unknown, fallback = "Authentication f
   }
 
   if (code === "auth/popup-blocked") {
-    return "The Google sign-in popup was blocked. On mobile, use the full-page Google redirect flow; on desktop, allow popups for this site.";
+    return "The Google sign-in popup was blocked. Allow popups for this site and try again.";
   }
 
   if (code === "auth/cancelled-popup-request") {
@@ -133,104 +68,6 @@ export function getAuthErrorMessage(error: unknown, fallback = "Authentication f
   }
 
   return fallback;
-}
-
-function loadGoogleIdentityScript() {
-  if (typeof window === "undefined") {
-    return Promise.reject(new Error("Google sign in is only available in the browser."));
-  }
-
-  if (window.google?.accounts?.oauth2) {
-    return Promise.resolve();
-  }
-
-  const existingScript = document.querySelector<HTMLScriptElement>(
-    `script[src="${googleIdentityScriptSrc}"]`,
-  );
-
-  if (existingScript) {
-    return new Promise<void>((resolve, reject) => {
-      existingScript.addEventListener("load", () => resolve(), { once: true });
-      existingScript.addEventListener(
-        "error",
-        () => reject(new Error("Unable to load Google sign in.")),
-        { once: true },
-      );
-    });
-  }
-
-  return new Promise<void>((resolve, reject) => {
-    const script = document.createElement("script");
-    script.async = true;
-    script.defer = true;
-    script.src = googleIdentityScriptSrc;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Unable to load Google sign in."));
-    document.head.appendChild(script);
-  });
-}
-
-export function preloadGoogleIdentityServices() {
-  if (!shouldUseGoogleIdentityServices()) {
-    return;
-  }
-
-  loadGoogleIdentityScript().catch(() => {
-    // The interactive sign-in path will surface the load error if the user taps Google.
-  });
-}
-
-async function signInWithGoogleIdentityServices() {
-  if (!googleWebClientId) {
-    throw new Error("Missing NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID.");
-  }
-
-  const auth = await getAuthWithLocalPersistence();
-  await loadGoogleIdentityScript();
-
-  const accessToken = await new Promise<string>((resolve, reject) => {
-    const timeout = window.setTimeout(() => {
-      reject(new Error("Google sign in timed out. Please try again."));
-    }, 60000);
-
-    const tokenClient = window.google?.accounts.oauth2.initTokenClient({
-      callback: (response) => {
-        window.clearTimeout(timeout);
-
-        if (response.access_token) {
-          resolve(response.access_token);
-          return;
-        }
-
-        reject(
-          new Error(
-            response.error_description ||
-              response.error ||
-              "Google did not return a sign-in token.",
-          ),
-        );
-      },
-      client_id: googleWebClientId,
-      error_callback: (error) => {
-        window.clearTimeout(timeout);
-        reject(error instanceof Error ? error : new Error("Google sign in failed."));
-      },
-      prompt: "select_account",
-      scope: "openid email profile",
-    });
-
-    if (!tokenClient) {
-      window.clearTimeout(timeout);
-      reject(new Error("Google sign in is unavailable in this browser."));
-      return;
-    }
-
-    tokenClient.requestAccessToken({ prompt: "select_account" });
-  });
-
-  const credential = GoogleAuthProvider.credential(null, accessToken);
-  const credentials = await signInWithCredential(auth, credential);
-  return getOrCreateUserProfile(credentials.user);
 }
 
 export async function getUserProfile(userId: string) {
@@ -306,44 +143,12 @@ export async function signInWithEmailPassword({
   return getOrCreateUserProfile(credentials.user);
 }
 
-export async function completeGoogleRedirectSignIn() {
-  const auth = await getAuthWithLocalPersistence();
-  const credentials = await getRedirectResult(auth);
-
-  if (!credentials) {
-    return undefined;
-  }
-
-  return getOrCreateUserProfile(credentials.user);
-}
-
 export async function signInWithGoogle() {
   const auth = await getAuthWithLocalPersistence();
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: "select_account" });
 
-  if (shouldUseGoogleRedirect()) {
-    await signInWithRedirect(auth, provider);
-    return undefined;
-  }
-
-  if (shouldUseGoogleIdentityServices()) {
-    return signInWithGoogleIdentityServices();
-  }
-
-  const credentials = await signInWithPopup(auth, provider).catch(async (authError) => {
-    if (shouldFallbackToGoogleRedirect(authError)) {
-      await signInWithRedirect(auth, provider);
-      return undefined;
-    }
-
-    throw authError;
-  });
-
-  if (!credentials) {
-    return undefined;
-  }
-
+  const credentials = await signInWithPopup(auth, provider);
   return getOrCreateUserProfile(credentials.user);
 }
 

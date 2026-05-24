@@ -16,16 +16,18 @@ import type {
   PantryIngredient,
   PantryIngredientInput,
 } from "@/lib/firebase/schema";
+import {
+  formatIngredientDisplayName as formatRecognizedIngredientName,
+  normalizeIngredientNameForMatching,
+} from "@/lib/ingredientRecognition";
 import { removeUndefinedDeep, slugify } from "@/lib/services/helpers";
 
 export function normalizeIngredientName(value: string) {
-  return value.trim().replace(/\s+/g, " ").toLowerCase();
+  return normalizeIngredientNameForMatching(value);
 }
 
 export function formatIngredientDisplayName(value: string) {
-  const normalizedName = normalizeIngredientName(value);
-
-  return normalizedName.replace(/\b\w/g, (character) => character.toUpperCase());
+  return formatRecognizedIngredientName(value);
 }
 
 function pantryIngredientIdFromName(name: string) {

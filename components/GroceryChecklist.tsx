@@ -18,6 +18,7 @@ import type {
   UserProfile,
 } from "@/lib/firebase/schema";
 import type { Ingredient, Recipe } from "@/lib/recipes";
+import { parseIngredientLine } from "@/lib/ingredientRecognition";
 import {
   fetchGroceryList,
   saveGroceryItems,
@@ -328,11 +329,12 @@ export function GroceryChecklist() {
 
   async function submitManualItem(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const parsedManualIngredient = parseIngredientLine(manualItem.name);
     const matchingPantryIngredient = findMatchingPantryIngredient(
       pantryIngredients,
-      manualItem.name,
+      parsedManualIngredient.item || manualItem.name,
     );
-    const name = manualItem.name.trim();
+    const name = parsedManualIngredient.item.trim();
 
     if (!name) {
       setError("Grocery item name is required.");
@@ -342,15 +344,19 @@ export function GroceryChecklist() {
     const nextItem: GroceryItem = {
       id: createGroceryItemId(),
       name,
-      quantity: cleanText(manualItem.quantity),
-      unit: cleanText(manualItem.unit),
+      quantity: cleanText(manualItem.quantity) ?? cleanText(parsedManualIngredient.quantity),
+      unit: cleanText(manualItem.unit) ?? cleanText(parsedManualIngredient.unit),
       category: manualItem.category || matchingPantryIngredient?.category || "Other",
       checked: false,
       preferredBrand:
-        cleanText(manualItem.preferredBrand) ?? matchingPantryIngredient?.preferredBrand,
+        cleanText(manualItem.preferredBrand) ??
+        matchingPantryIngredient?.preferredBrand ??
+        cleanText(parsedManualIngredient.brand),
       productName:
-        cleanText(manualItem.productName) ?? matchingPantryIngredient?.preferredProductName,
-      notes: cleanText(manualItem.notes),
+        cleanText(manualItem.productName) ??
+        matchingPantryIngredient?.preferredProductName ??
+        cleanText(parsedManualIngredient.productName),
+      notes: combineText(cleanText(parsedManualIngredient.note), cleanText(manualItem.notes)),
       createdAt: new Date().toISOString(),
     };
 
