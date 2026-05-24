@@ -1,12 +1,18 @@
 "use client";
 
-import { AtSign, Bell, ImagePlus, KeyRound, Mail, Save } from "lucide-react";
+import { AtSign, Bell, BellRing, ImagePlus, KeyRound, Mail, Save } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { UserAvatar } from "@/components/UserAvatar";
 import type { AccountVisibility, NotificationBin, NotificationPreferences } from "@/lib/firebase/schema";
 import { defaultRecipeVisibility, type RecipeVisibility } from "@/lib/recipes";
+import {
+  disableDevicePushNotifications,
+  enableDevicePushNotifications,
+  getPushNotificationState,
+  type PushNotificationState,
+} from "@/lib/services/pushNotificationService";
 import { defaultNotificationPreferences } from "@/lib/services/userService";
 
 const accountVisibilityOptions: Array<{
@@ -96,9 +102,11 @@ export function SettingsClient() {
   const [photoFile, setPhotoFile] = useState<File | undefined>();
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | undefined>();
   const [formError, setFormError] = useState<string | undefined>();
+  const [pushState, setPushState] = useState<PushNotificationState | undefined>();
   const [message, setMessage] = useState<string | undefined>();
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isSendingReset, setIsSendingReset] = useState(false);
+  const [isUpdatingPush, setIsUpdatingPush] = useState(false);
   const profileHref = profile ? `/profiles/${profile.id}` : "/settings";
   const accountVisibility =
     accountVisibilityDraft ?? profile?.accountVisibility ?? "private";
@@ -124,6 +132,24 @@ export function SettingsClient() {
     },
     [photoPreviewUrl],
   );
+
+  useEffect(() => {
+    let active = true;
+
+    getPushNotificationState(profile?.id).then((state) => {
+      if (active) {
+        setPushState(state);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [profile?.id]);
+
+  async function refreshPushState() {
+    setPushState(await getPushNotificationState(profile?.id));
+  }
 
   function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -219,18 +245,64 @@ export function SettingsClient() {
     }
   }
 
+  async function enablePush() {
+    if (!profile) {
+      return;
+    }
+
+    setFormError(undefined);
+    setMessage(undefined);
+    setIsUpdatingPush(true);
+
+    try {
+      await enableDevicePushNotifications(profile.id);
+      await refreshPushState();
+      setMessage("Push notifications are enabled for this device.");
+    } catch (pushError) {
+      setFormError(
+        pushError instanceof Error ? pushError.message : "Unable to enable push notifications.",
+      );
+      await refreshPushState();
+    } finally {
+      setIsUpdatingPush(false);
+    }
+  }
+
+  async function disablePush() {
+    if (!profile) {
+      return;
+    }
+
+    setFormError(undefined);
+    setMessage(undefined);
+    setIsUpdatingPush(true);
+
+    try {
+      await disableDevicePushNotifications(profile.id);
+      await refreshPushState();
+      setMessage("Push notifications are off for this device.");
+    } catch (pushError) {
+      setFormError(
+        pushError instanceof Error ? pushError.message : "Unable to disable push notifications.",
+      );
+      await refreshPushState();
+    } finally {
+      setIsUpdatingPush(false);
+    }
+  }
+
   return (
-    <div className="mx-auto max-w-3xl space-y-5 sm:space-y-6">
+    <div className="mx-auto max-w-3xl space-y-4 sm:space-y-6">
       <section className="space-y-2">
         <p className="hidden text-sm font-bold uppercase tracking-[0.18em] text-[var(--tomato)] sm:block">
           Settings
         </p>
-        <h1 className="font-serif text-3xl leading-tight text-stone-950 sm:text-5xl">
+        <h1 className="font-serif text-2xl leading-tight text-stone-950 sm:text-5xl">
           Account
         </h1>
       </section>
 
-      <section className="rounded-lg border border-stone-200 bg-white/75 p-4 shadow-sm sm:p-5">
+      <section className="rounded-lg border border-stone-200 bg-white/75 p-3 shadow-sm sm:p-5">
         <div className="flex items-start gap-3">
           <UserAvatar
             displayName={String(profile?.displayName ?? "Cook")}
@@ -238,7 +310,7 @@ export function SettingsClient() {
             size="lg"
           />
           <div className="min-w-0">
-            <h2 className="font-serif text-2xl leading-tight text-stone-950">
+            <h2 className="font-serif text-xl leading-tight text-stone-950 sm:text-2xl">
               {profile?.displayName ?? "Your profile"}
             </h2>
             <div className="mt-1 space-y-1 text-sm font-semibold text-stone-500">
@@ -256,7 +328,7 @@ export function SettingsClient() {
       </section>
 
       <form
-        className="rounded-lg border border-stone-200 bg-white/75 p-4 shadow-sm sm:p-5"
+        className="rounded-lg border border-stone-200 bg-white/75 p-3 shadow-sm sm:p-5"
         onSubmit={saveProfile}
       >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
@@ -331,18 +403,17 @@ export function SettingsClient() {
         </button>
       </form>
 
-      <section className="rounded-lg border border-stone-200 bg-white/75 p-4 shadow-sm sm:p-5">
+      <section className="rounded-lg border border-stone-200 bg-white/75 p-3 shadow-sm sm:p-5">
         <div className="flex items-start gap-3">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#fff4e4] text-[var(--tomato)]">
             <Bell aria-hidden="true" className="h-5 w-5" />
           </span>
           <div className="min-w-0 flex-1">
-            <h2 className="font-serif text-2xl leading-tight text-stone-950">
+            <h2 className="font-serif text-xl leading-tight text-stone-950 sm:text-2xl">
               Notifications
             </h2>
             <p className="mt-1 text-sm leading-6 text-stone-600">
-              Choose which in-app notification bins should show up. Push alerts can use
-              these same settings later.
+              Choose which notification bins should show up in-app and as push alerts.
             </p>
           </div>
         </div>
@@ -397,15 +468,49 @@ export function SettingsClient() {
           <Save aria-hidden="true" className="h-4 w-4" />
           {isSavingProfile ? "Saving..." : "Save notification settings"}
         </button>
+
+        <div className="mt-4 rounded-lg border border-stone-200 bg-white/80 p-3 shadow-sm">
+          <div className="flex items-start gap-3">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-stone-100 text-stone-600">
+              <BellRing aria-hidden="true" className="h-4 w-4" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-stone-950">Push on this device</p>
+              <p className="mt-1 text-xs font-medium leading-5 text-stone-500">
+                {pushState ? pushStatusText(pushState) : "Checking this browser..."}
+              </p>
+              {pushState?.error ? (
+                <p className="mt-2 text-xs font-semibold text-red-700">{pushState.error}</p>
+              ) : null}
+            </div>
+          </div>
+          <button
+            className="mt-3 inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-stone-200 bg-white px-3 text-sm font-bold text-stone-700 shadow-sm disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+            disabled={
+              isUpdatingPush ||
+              !pushState?.supported ||
+              !pushState.vapidKeyConfigured ||
+              pushState.permission === "denied"
+            }
+            onClick={pushState?.enabled ? disablePush : enablePush}
+            type="button"
+          >
+            {isUpdatingPush
+              ? "Updating..."
+              : pushState?.enabled
+                ? "Turn off push"
+                : "Enable push"}
+          </button>
+        </div>
       </section>
 
-      <section className="rounded-lg border border-stone-200 bg-white/75 p-4 shadow-sm sm:p-5">
+      <section className="rounded-lg border border-stone-200 bg-white/75 p-3 shadow-sm sm:p-5">
         <div className="flex items-start gap-3">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-stone-100 text-stone-600">
             <Mail aria-hidden="true" className="h-5 w-5" />
           </span>
           <div className="min-w-0 flex-1">
-            <h2 className="font-serif text-2xl leading-tight text-stone-950">Email</h2>
+            <h2 className="font-serif text-xl leading-tight text-stone-950 sm:text-2xl">Email</h2>
             <p className="mt-1 truncate text-sm font-semibold text-stone-500">
               {profile?.email ?? "No email address"}
             </p>
@@ -413,13 +518,13 @@ export function SettingsClient() {
         </div>
       </section>
 
-      <section className="rounded-lg border border-stone-200 bg-white/75 p-4 shadow-sm sm:p-5">
+      <section className="rounded-lg border border-stone-200 bg-white/75 p-3 shadow-sm sm:p-5">
         <div className="flex items-start gap-3">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-stone-100 text-stone-600">
             <KeyRound aria-hidden="true" className="h-5 w-5" />
           </span>
           <div className="min-w-0 flex-1">
-            <h2 className="font-serif text-2xl leading-tight text-stone-950">Password</h2>
+            <h2 className="font-serif text-xl leading-tight text-stone-950 sm:text-2xl">Password</h2>
             <button
               className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-stone-200 bg-white px-4 text-sm font-bold text-stone-700 shadow-sm disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
               disabled={isSendingReset || !profile?.email}
@@ -447,6 +552,30 @@ export function SettingsClient() {
   );
 }
 
+function pushStatusText(state: PushNotificationState) {
+  if (!state.supported) {
+    return "This browser does not support web push notifications.";
+  }
+
+  if (!state.vapidKeyConfigured) {
+    return "Add NEXT_PUBLIC_FIREBASE_VAPID_KEY to enable push setup.";
+  }
+
+  if (state.permission === "denied") {
+    return "Notifications are blocked in this browser's site settings.";
+  }
+
+  if (state.enabled) {
+    return "This device is registered for push notifications with title and body payloads.";
+  }
+
+  if (state.permission === "granted") {
+    return "Permission is allowed, but this device is not registered yet.";
+  }
+
+  return "Enable push to receive alerts even when the app is in the background.";
+}
+
 function PrivacyOptionGroup<Value extends string>({
   description,
   label,
@@ -467,7 +596,7 @@ function PrivacyOptionGroup<Value extends string>({
       <div className="grid gap-2">
         {options.map((option) => (
           <button
-            className={`rounded-lg border p-3 text-left transition ${
+            className={`rounded-lg border p-2.5 text-left transition sm:p-3 ${
               option.value === value
                 ? "border-[var(--tomato)] bg-[#fff4e4] text-stone-950 ring-2 ring-orange-100"
                 : "border-stone-200 bg-white text-stone-700 hover:bg-stone-50"

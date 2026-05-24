@@ -6,6 +6,15 @@ export type AccountVisibility = "private" | "public";
 export type NotificationBin = "social" | "collaboration" | "recipeActivity" | "reminders";
 export type NotificationPreferences = Record<NotificationBin, boolean>;
 
+export type PushNotificationToken = {
+  id: string;
+  token: string;
+  userId: string;
+  userAgent?: string;
+  createdAt?: unknown;
+  updatedAt?: unknown;
+};
+
 export type NotificationType =
   | "friend_request_received"
   | "friend_request_accepted"

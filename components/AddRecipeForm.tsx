@@ -393,17 +393,17 @@ export function AddRecipeForm({
   }
 
   return (
-    <form className="space-y-6" onSubmit={submitRecipe}>
-      <section className="grid gap-4 lg:grid-cols-[1fr_18rem]">
+    <form className="space-y-4 sm:space-y-6" onSubmit={submitRecipe}>
+      <section className="grid gap-3 lg:grid-cols-[1fr_18rem]">
         <div>
-          <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--tomato)]">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--tomato)] sm:text-sm">
             {isEditing ? "Edit Recipe" : "Add Recipe"}
           </p>
-          <h1 className="mt-2 font-serif text-4xl leading-tight text-stone-950 sm:text-5xl">
+          <h1 className="mt-1 font-serif text-2xl leading-tight text-stone-950 sm:mt-2 sm:text-5xl">
             {isEditing ? "Tune the keeper" : "Save the next keeper"}
           </h1>
         </div>
-        <div className="rounded-lg border border-stone-200 bg-white/72 p-4 shadow-sm">
+        <div className="rounded-lg border border-stone-200 bg-white/72 p-3 shadow-sm sm:p-4">
           <div className="flex items-center gap-3">
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-rose-100 text-rose-700">
               <ClipboardCheck aria-hidden="true" className="h-5 w-5" />
@@ -420,7 +420,7 @@ export function AddRecipeForm({
 
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="space-y-4">
-          <div className="space-y-4 rounded-lg border border-stone-200 bg-white/76 p-4 shadow-sm sm:p-5">
+          <div className="space-y-4 rounded-lg border border-stone-200 bg-white/76 p-3 shadow-sm sm:p-5">
             <FormSectionTitle eyebrow="Start here" title="Name and organize" />
             <TextField
               label="Recipe title"
@@ -440,12 +440,12 @@ export function AddRecipeForm({
             />
           </div>
 
-          <div className="space-y-3 rounded-lg border border-stone-200 bg-white/76 p-4 shadow-sm sm:p-5">
+          <div className="space-y-3 rounded-lg border border-stone-200 bg-white/76 p-3 shadow-sm sm:p-5">
             <FormSectionTitle eyebrow="Core recipe" title="Ingredients" />
             <label className="space-y-2">
               <span className="text-sm font-bold text-stone-700">One ingredient per line</span>
               <textarea
-                className={`${textareaClassName} min-h-72 font-mono text-[0.95rem] leading-7`}
+                className={`${textareaClassName} min-h-56 font-mono text-[0.95rem] leading-7 sm:min-h-72`}
                 onChange={(event) => {
                   setIngredientsText(event.target.value);
                   setEmptyStructureAcknowledged(false);
@@ -457,14 +457,14 @@ export function AddRecipeForm({
             </label>
           </div>
 
-          <div className="space-y-3 rounded-lg border border-stone-200 bg-white/76 p-4 shadow-sm sm:p-5">
+          <div className="space-y-3 rounded-lg border border-stone-200 bg-white/76 p-3 shadow-sm sm:p-5">
             <FormSectionTitle eyebrow="Core recipe" title="Directions" />
             <label className="space-y-2">
               <span className="text-sm font-bold text-stone-700">
                 Paste or type the method
               </span>
               <textarea
-                className={`${textareaClassName} min-h-80 text-base leading-7`}
+                className={`${textareaClassName} min-h-64 text-base leading-7 sm:min-h-80`}
                 onChange={(event) => {
                   setDirectionsText(event.target.value);
                   setEmptyStructureAcknowledged(false);

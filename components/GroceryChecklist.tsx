@@ -401,26 +401,26 @@ export function GroceryChecklist() {
   }
 
   return (
-    <div className="space-y-6">
-      <section className="grid gap-4 lg:grid-cols-[1fr_18rem]">
+    <div className="space-y-4 sm:space-y-6">
+      <section className="grid gap-3 lg:grid-cols-[1fr_18rem]">
         <div>
-          <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--tomato)]">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--tomato)] sm:text-sm">
             Grocery List
           </p>
-          <h1 className="mt-2 font-serif text-4xl leading-tight text-stone-950 sm:text-5xl">
+          <h1 className="mt-1 font-serif text-2xl leading-tight text-stone-950 sm:mt-2 sm:text-5xl">
             Plan the next market run
           </h1>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600 sm:text-base">
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-stone-600 sm:mt-3 sm:text-base">
             Pull ingredients from recipes, keep pantry brand preferences visible, and
             check things off while shopping.
           </p>
         </div>
-        <div className="flex items-center gap-3 rounded-lg border border-stone-200 bg-white/72 p-4 shadow-sm">
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-lime-100 text-lime-800">
+        <div className="flex items-center gap-3 rounded-lg border border-stone-200 bg-white/72 p-3 shadow-sm sm:p-4">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-lime-100 text-lime-800 sm:h-11 sm:w-11">
             <ShoppingBasket aria-hidden="true" className="h-5 w-5" />
           </span>
           <div>
-            <p className="text-2xl font-bold text-stone-950">
+            <p className="text-xl font-bold text-stone-950 sm:text-2xl">
               {checkedCount}/{items.length}
             </p>
             <p className="text-sm font-medium text-stone-500">checked off</p>

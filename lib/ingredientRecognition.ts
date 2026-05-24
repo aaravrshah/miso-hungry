@@ -278,7 +278,7 @@ export function parseIngredientLine(line: string): Ingredient {
     quantity = "top with";
     remaining = topWithMatch[1].trim();
   } else {
-    const quantityToken = `(?:\\d+\\s+\\d+\\/\\d+|\\d+(?:\\.\\d+)?|[${fractionCharacters}]|a\\s+few|few|a\\s+couple|couple|to\\s+taste|as\\s+needed|a|an|one|half)`;
+    const quantityToken = `(?:\\d+\\s+\\d+[\\/\u2044]\\d+|\\d+[\\/\u2044]\\d+|\\d+(?:\\.\\d+)?|[${fractionCharacters}]|a\\s+few|few|a\\s+couple|couple|to\\s+taste|as\\s+needed|a|an|one|half)`;
     const unitToken = ingredientUnits.map((item) => item.replace(/\s+/g, "\\s+")).join("|");
     const quantityUnitMatch = remaining.match(
       new RegExp(`^(${quantityToken})\\s+(${unitToken})\\b\\s*(?:of\\s+)?(.+)$`, "i"),

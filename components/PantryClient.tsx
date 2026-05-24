@@ -319,22 +319,22 @@ export function PantryClient() {
   const recipeUses = activeItem?.recipeUses ?? [];
 
   return (
-    <div className="space-y-6">
-      <section className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
+    <div className="space-y-4 sm:space-y-6">
+      <section className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-end">
         <div>
-          <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--tomato)]">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--tomato)] sm:text-sm">
             Pantry
           </p>
-          <h1 className="mt-2 font-serif text-4xl leading-tight text-stone-950 sm:text-5xl">
+          <h1 className="mt-1 font-serif text-2xl leading-tight text-stone-950 sm:mt-2 sm:text-5xl">
             Ingredient notes and favorite brands
           </h1>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600 sm:text-base">
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-stone-600 sm:mt-3 sm:text-base">
             A knowledge base for ingredients used in your recipes, preferred products,
             substitutes, and where to buy them.
           </p>
         </div>
         <button
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[var(--tomato)] px-4 text-sm font-bold text-white shadow-sm"
+          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-[var(--tomato)] px-4 text-sm font-bold text-white shadow-sm sm:min-h-11"
           onClick={startNewIngredient}
           type="button"
         >
@@ -367,7 +367,7 @@ export function PantryClient() {
           </label>
 
           <div className="rounded-lg border border-stone-200 bg-white/76 shadow-sm">
-            <div className="flex items-center justify-between gap-3 border-b border-stone-100 p-4">
+            <div className="flex items-center justify-between gap-3 border-b border-stone-100 p-3 sm:p-4">
               <p className="text-sm font-bold text-stone-700">
                 {isLoadingPantry || recipesLoading
                   ? "Loading pantry..."
@@ -388,7 +388,7 @@ export function PantryClient() {
 
                 return (
                   <button
-                    className={`w-full rounded-lg p-3 text-left transition ${
+                    className={`w-full rounded-lg p-2.5 text-left transition sm:p-3 ${
                       active
                         ? "bg-stone-950 text-white"
                         : "text-stone-700 hover:bg-stone-50"

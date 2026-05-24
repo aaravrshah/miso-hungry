@@ -68,3 +68,60 @@ self.addEventListener("fetch", (event) => {
     }),
   );
 });
+
+function readPushPayload(event) {
+  if (!event.data) {
+    return {};
+  }
+
+  try {
+    return event.data.json();
+  } catch {
+    return {
+      notification: {
+        body: event.data.text(),
+        title: "Miso Hungry",
+      },
+    };
+  }
+}
+
+self.addEventListener("push", (event) => {
+  const payload = readPushPayload(event);
+  const notification = payload.notification || {};
+  const data = payload.data || {};
+  const title = notification.title || data.title || "Miso Hungry";
+  const body = notification.body || data.body || "";
+  const url = data.href || data.url || "/notifications";
+
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      badge: "/icons/icon-192.png",
+      body,
+      data: { url },
+      icon: notification.icon || data.icon || "/icons/icon-192.png",
+      tag: data.notificationId || data.recipeId || undefined,
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  const rawUrl = event.notification.data?.url || "/notifications";
+  const url = new URL(rawUrl, self.location.origin).href;
+
+  event.waitUntil(
+    self.clients
+      .matchAll({ includeUncontrolled: true, type: "window" })
+      .then((clients) => {
+        const existingClient = clients.find((client) => client.url === url);
+
+        if (existingClient) {
+          return existingClient.focus();
+        }
+
+        return self.clients.openWindow(url);
+      }),
+  );
+});

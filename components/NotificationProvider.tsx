@@ -16,6 +16,7 @@ import {
   markAllNotificationsRead as markAllNotificationsReadService,
   markNotificationRead as markNotificationReadService,
 } from "@/lib/services/notificationService";
+import { subscribeToForegroundPushMessages } from "@/lib/services/pushNotificationService";
 
 export type NotificationContextValue = {
   error?: string;
@@ -62,6 +63,48 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       refreshNotifications();
     });
   }, [refreshNotifications]);
+
+  useEffect(() => {
+    if (!profile) {
+      return;
+    }
+
+    let unsubscribe: (() => void) | undefined;
+    let active = true;
+
+    subscribeToForegroundPushMessages((payload) => {
+      const title = payload.notification?.title ?? payload.data?.title ?? "Miso Hungry";
+      const body = payload.notification?.body ?? payload.data?.body ?? "";
+      const href = payload.data?.href ?? "/notifications";
+
+      refreshNotifications();
+
+      if (
+        document.visibilityState !== "visible" &&
+        "Notification" in window &&
+        Notification.permission === "granted"
+      ) {
+        new Notification(title, {
+          body,
+          data: { href },
+          icon: "/icons/icon-192.png",
+        });
+      }
+    })
+      .then((nextUnsubscribe) => {
+        if (active) {
+          unsubscribe = nextUnsubscribe;
+        } else {
+          nextUnsubscribe();
+        }
+      })
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+      unsubscribe?.();
+    };
+  }, [profile, refreshNotifications]);
 
   const markRead = useCallback(
     async (notificationId: string) => {

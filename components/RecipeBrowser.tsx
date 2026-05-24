@@ -125,13 +125,13 @@ export function RecipeBrowser({ initialCategory = "All" }: RecipeBrowserProps) {
   const activeScope = recipeScopes.find((item) => item.value === scope) ?? recipeScopes[0];
 
   return (
-    <div className="space-y-5 sm:space-y-6">
-      <section className="space-y-3 sm:space-y-4">
+    <div className="space-y-4 sm:space-y-6">
+      <section className="space-y-2.5 sm:space-y-4">
         <div>
           <p className="hidden text-sm font-bold uppercase tracking-[0.18em] text-[var(--tomato)] sm:block">
             All Recipes
           </p>
-          <h1 className="font-serif text-3xl leading-tight text-stone-950 sm:mt-2 sm:text-5xl">
+          <h1 className="font-serif text-2xl leading-tight text-stone-950 sm:mt-2 sm:text-5xl">
             Recipes
           </h1>
           <p className="mt-1 hidden text-sm font-medium text-stone-500 sm:block">
@@ -139,10 +139,10 @@ export function RecipeBrowser({ initialCategory = "All" }: RecipeBrowserProps) {
           </p>
         </div>
 
-        <div className="grid grid-cols-3 gap-2 rounded-lg border border-stone-200 bg-white/60 p-1 shadow-sm sm:flex sm:w-fit">
+        <div className="grid grid-cols-3 gap-1 rounded-lg border border-stone-200 bg-white/60 p-1 shadow-sm sm:flex sm:w-fit sm:gap-2">
           {recipeScopes.map((item) => (
             <button
-              className={`min-h-10 rounded-md px-3 text-xs font-bold transition sm:text-sm ${
+              className={`min-h-9 rounded-md px-2 text-xs font-bold transition sm:min-h-10 sm:px-3 sm:text-sm ${
                 scope === item.value
                   ? "bg-stone-950 text-white shadow-sm"
                   : "text-stone-600 hover:bg-white"
@@ -167,7 +167,7 @@ export function RecipeBrowser({ initialCategory = "All" }: RecipeBrowserProps) {
               className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-stone-400"
             />
             <input
-              className="h-11 w-full rounded-lg border border-stone-200 bg-white/82 pl-12 pr-4 text-base text-stone-950 shadow-sm outline-none transition placeholder:text-stone-400 focus:border-[var(--tomato)] focus:ring-4 focus:ring-red-100 sm:h-12"
+              className="h-10 w-full rounded-lg border border-stone-200 bg-white/82 pl-11 pr-4 text-base text-stone-950 shadow-sm outline-none transition placeholder:text-stone-400 focus:border-[var(--tomato)] focus:ring-4 focus:ring-red-100 sm:h-12 sm:pl-12"
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search recipes"
               type="search"

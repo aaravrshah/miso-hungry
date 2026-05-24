@@ -39,13 +39,13 @@ export function NotificationsClient() {
   } = useNotifications();
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
+    <div className="mx-auto max-w-3xl space-y-4 sm:space-y-5">
       <section className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="hidden text-sm font-bold uppercase tracking-[0.18em] text-[var(--tomato)] sm:block">
             Notifications
           </p>
-          <h1 className="font-serif text-3xl leading-tight text-stone-950 sm:text-5xl">
+          <h1 className="font-serif text-2xl leading-tight text-stone-950 sm:text-5xl">
             What happened lately
           </h1>
           <p className="mt-1 text-sm font-semibold text-stone-500">
@@ -54,7 +54,7 @@ export function NotificationsClient() {
         </div>
         <div className="flex gap-2">
           <button
-            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-3 text-sm font-bold text-stone-700 shadow-sm"
+            className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-3 text-sm font-bold text-stone-700 shadow-sm sm:min-h-10"
             onClick={refreshNotifications}
             type="button"
           >
@@ -62,7 +62,7 @@ export function NotificationsClient() {
             Refresh
           </button>
           <button
-            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-[var(--tomato)] px-3 text-sm font-bold text-white shadow-sm"
+            className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg bg-[var(--tomato)] px-3 text-sm font-bold text-white shadow-sm sm:min-h-10"
             onClick={markAllRead}
             type="button"
           >
@@ -118,19 +118,19 @@ function NotificationRow({
 }) {
   const content = (
     <article
-      className={`flex gap-3 rounded-lg border p-4 shadow-sm transition ${
+      className={`flex gap-3 rounded-lg border p-3 shadow-sm transition sm:p-4 ${
         notification.isRead
           ? "border-stone-200 bg-white/68"
           : "border-orange-200 bg-[#fff8ed]"
       }`}
     >
-      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-white text-xl shadow-sm ring-1 ring-stone-200">
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white text-lg shadow-sm ring-1 ring-stone-200 sm:h-11 sm:w-11 sm:text-xl">
         {notification.emoji}
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="font-serif text-xl leading-tight text-stone-950">
+            <h2 className="font-serif text-lg leading-tight text-stone-950 sm:text-xl">
               {notification.title}
             </h2>
             <p className="mt-1 text-sm leading-6 text-stone-600">{notification.body}</p>

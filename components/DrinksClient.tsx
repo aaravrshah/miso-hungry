@@ -1,15 +1,11 @@
 "use client";
 
 import {
-  BookOpen,
-  CheckCircle2,
   ExternalLink,
   GlassWater,
   Search,
   Save,
   SlidersHorizontal,
-  Sparkles,
-  Users,
   X,
 } from "lucide-react";
 import Image from "next/image";
@@ -259,7 +255,6 @@ export function DrinksClient({ demoCabinetIngredients }: DrinksClientProps = {})
   const canMakeCount = matchedDrinks.filter((drink) => drink.matchStatus === "canMake").length;
   const missingOneCount = matchedDrinks.filter((drink) => drink.matchStatus === "missing1").length;
   const missingTwoCount = matchedDrinks.filter((drink) => drink.matchStatus === "missing2").length;
-  const topShelf = matchedDrinks.slice(0, 3);
 
   function setIngredients(nextIngredients: string[]) {
     setCabinetText(parseDrinkIngredientText(nextIngredients.join("\n")).join("\n"));
@@ -402,21 +397,6 @@ export function DrinksClient({ demoCabinetIngredients }: DrinksClientProps = {})
         </p>
       ) : null}
 
-      {topShelf.length > 0 ? (
-        <section className="grid gap-3 md:grid-cols-3">
-          {topShelf.map((drink) => (
-            <button
-              className="text-left"
-              key={`top-${drink.source}-${drink.id}`}
-              onClick={() => setSelectedDrink(drink)}
-              type="button"
-            >
-              <DrinkShelfCard drink={drink} />
-            </button>
-          ))}
-        </section>
-      ) : null}
-
       <section className="grid gap-5 xl:grid-cols-[22rem_1fr]">
         <aside className="space-y-4 rounded-2xl border border-stone-200 bg-white/76 p-4 shadow-sm xl:sticky xl:top-8">
           <div className="flex items-start justify-between gap-3">
@@ -550,13 +530,18 @@ function DrinkStat({ label, value }: { label: string; value: string }) {
 
 function DrinkArtwork({ drink, compact = false }: { compact?: boolean; drink: DrinkMatch }) {
   const imageUrl = drinkImageUrl(drink);
+  const className = `relative overflow-hidden rounded-lg bg-stone-100 ${compact ? "h-20 sm:h-28" : "h-32"}`;
 
   if (!imageUrl) {
-    return null;
+    return (
+      <div className={`${className} grid place-items-center text-stone-400`}>
+        <GlassWater aria-hidden="true" className="h-7 w-7" />
+      </div>
+    );
   }
 
   return (
-    <div className={`relative overflow-hidden rounded-xl bg-stone-100 ${compact ? "h-20" : "h-32"}`}>
+    <div className={className}>
       <Image
         alt={drink.title}
         className="h-full w-full object-cover"
@@ -565,31 +550,6 @@ function DrinkArtwork({ drink, compact = false }: { compact?: boolean; drink: Dr
         src={imageUrl}
       />
     </div>
-  );
-}
-
-function DrinkShelfCard({ drink }: { drink: DrinkMatch }) {
-  return (
-    <article className="h-full overflow-hidden rounded-2xl border border-stone-200 bg-white/78 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-      <DrinkArtwork compact drink={drink} />
-      <div className="space-y-2 p-3">
-        <span
-          className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ring-1 ${statusClassName(
-            drink.matchStatus,
-          )}`}
-        >
-          {statusLabel(drink.matchStatus)}
-        </span>
-        <h2 className="line-clamp-1 font-serif text-xl leading-tight text-stone-950">
-          {drink.title}
-        </h2>
-        <p className="line-clamp-1 text-sm font-semibold text-stone-500">
-          {drink.missingIngredients.length
-            ? `Missing ${drink.missingIngredients.slice(0, 2).join(", ")}`
-            : compactIngredientList(drink, 3)}
-        </p>
-      </div>
-    </article>
   );
 }
 
@@ -602,93 +562,15 @@ function DrinkMatchCard({
 }) {
   return (
     <button className="block h-full text-left" onClick={onSelect} type="button">
-      <article className="h-full overflow-hidden rounded-2xl border border-stone-200 bg-white/78 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-        <DrinkArtwork drink={drink} />
-        <div className="p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap gap-2">
-            <span
-              className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${statusClassName(
-                drink.matchStatus,
-              )}`}
-            >
-              {statusLabel(drink.matchStatus)}
-            </span>
-            <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-bold text-stone-600 ring-1 ring-stone-200">
-              {sourceLabel(drink.source)}
-            </span>
-          </div>
-          <h2 className="mt-3 font-serif text-2xl leading-tight text-stone-950">
+      <article className="grid h-full grid-cols-[5.5rem_1fr] gap-3 overflow-hidden rounded-lg border border-stone-200 bg-white/82 p-2 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:block sm:p-0">
+        <DrinkArtwork compact drink={drink} />
+        <div className="min-w-0 py-1 pr-1 sm:p-3">
+          <h2 className="line-clamp-1 font-serif text-xl leading-tight text-stone-950 sm:text-2xl">
             {drink.title}
           </h2>
-          <p className="mt-2 line-clamp-2 text-sm leading-6 text-stone-600">
-            {drink.description}
+          <p className="mt-1 line-clamp-2 text-sm font-semibold leading-5 text-stone-600">
+            {compactIngredientList(drink, 6)}
           </p>
-          <p className="mt-2 line-clamp-2 text-sm font-semibold leading-6 text-stone-700">
-            {compactIngredientList(drink)}
-          </p>
-        </div>
-        {drink.source === "catalog" ? (
-          <BookOpen aria-hidden="true" className="h-5 w-5 shrink-0 text-stone-400" />
-        ) : drink.source === "friends" ? (
-          <Users aria-hidden="true" className="h-5 w-5 shrink-0 text-stone-400" />
-        ) : (
-          <Sparkles aria-hidden="true" className="h-5 w-5 shrink-0 text-stone-400" />
-        )}
-      </div>
-
-      <div className="mt-4 rounded-lg bg-stone-50 p-3 ring-1 ring-stone-200">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-stone-400">
-            Ingredients
-          </p>
-          <p className="text-xs font-bold text-stone-500">
-            {drink.availableIngredientCount}/{drink.requiredIngredients.length} on hand
-          </p>
-        </div>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {drink.requiredIngredients.map((ingredient) => {
-            const missing = drink.missingIngredients.includes(ingredient);
-
-            return (
-              <span
-                className={`inline-flex min-h-8 items-center gap-1.5 rounded-full px-3 text-xs font-bold ring-1 ${
-                  missing
-                    ? "bg-white text-stone-500 ring-stone-200"
-                    : "bg-emerald-50 text-emerald-700 ring-emerald-200"
-                }`}
-                key={ingredient}
-              >
-                {!missing ? <CheckCircle2 aria-hidden="true" className="h-3.5 w-3.5" /> : null}
-                {ingredient}
-              </span>
-            );
-          })}
-        </div>
-      </div>
-
-      {drink.missingIngredients.length > 0 ? (
-        <p className="mt-3 text-sm font-semibold text-[var(--tomato)]">
-          Missing: {drink.missingIngredients.join(", ")}
-        </p>
-      ) : (
-        <p className="mt-3 text-sm font-semibold text-emerald-700">
-          You have everything for this one.
-        </p>
-      )}
-
-      {drink.owner ? (
-        <p className="mt-3 text-xs font-bold uppercase tracking-[0.12em] text-stone-400">
-          By {drink.owner.displayName}
-        </p>
-      ) : null}
-
-      {drink.method ? (
-        <p className="mt-3 line-clamp-2 text-sm leading-6 text-stone-600">
-          {drink.method}
-        </p>
-      ) : null}
         </div>
       </article>
     </button>
