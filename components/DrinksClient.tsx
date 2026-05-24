@@ -302,26 +302,96 @@ export function DrinksClient({ demoCabinetIngredients }: DrinksClientProps = {})
     }
   }
 
+  function renderCabinetControls(compactIdeas = false) {
+    return (
+      <div className="space-y-4">
+        <textarea
+          className="min-h-36 w-full resize-y rounded-lg border border-stone-200 bg-white p-4 text-sm leading-6 text-stone-950 outline-none transition placeholder:text-stone-400 focus:border-[var(--tomato)] focus:ring-4 focus:ring-red-100 xl:min-h-56"
+          disabled={isLoadingCabinet}
+          onChange={(event) => setCabinetText(event.target.value)}
+          placeholder={"Gin\nLime\nTonic water\nCampari\nSimple syrup"}
+          value={cabinetText}
+        />
+
+        {availableIngredients.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {availableIngredients.map((ingredient) => (
+              <span
+                className="inline-flex min-h-8 items-center gap-2 rounded-full bg-stone-100 px-3 text-xs font-bold text-stone-600 ring-1 ring-stone-200"
+                key={ingredient}
+              >
+                {ingredient}
+                <button
+                  className="text-stone-400 transition hover:text-red-600"
+                  onClick={() => removeIngredient(ingredient)}
+                  type="button"
+                >
+                  <span className="sr-only">Remove {ingredient}</span>
+                  <X aria-hidden="true" className="h-3.5 w-3.5" />
+                </button>
+              </span>
+            ))}
+          </div>
+        ) : null}
+
+        <button
+          className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-[var(--tomato)] px-4 text-sm font-bold text-white shadow-sm transition hover:bg-[#a94e3a] disabled:cursor-not-allowed disabled:opacity-70"
+          disabled={isSavingCabinet || isLoadingCabinet}
+          onClick={saveCabinet}
+          type="button"
+        >
+          <Save aria-hidden="true" className="h-4 w-4" />
+          {isSavingCabinet ? "Saving..." : "Save cabinet"}
+        </button>
+
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-stone-400">
+            Ingredient ideas
+          </p>
+          <div
+            className={`mt-3 flex flex-wrap gap-2 overflow-y-auto pr-1 ${
+              compactIdeas ? "max-h-32" : "max-h-60"
+            }`}
+          >
+            {ingredientSuggestions
+              .filter((ingredient) => !availableIngredients.includes(ingredient))
+              .slice(0, compactIdeas ? 24 : 60)
+              .map((ingredient) => (
+                <button
+                  className="min-h-8 rounded-full bg-white px-3 text-xs font-bold text-stone-600 ring-1 ring-stone-200 transition hover:bg-stone-50 hover:text-stone-950"
+                  key={ingredient}
+                  onClick={() => addIngredient(ingredient)}
+                  type="button"
+                >
+                  + {ingredient}
+                </button>
+              ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5">
       <section className="overflow-hidden rounded-2xl border border-stone-900/10 bg-[#18261f] text-white shadow-sm">
-        <div className="grid gap-5 p-4 sm:p-5 xl:grid-cols-[1fr_26rem]">
+        <div className="grid gap-4 p-4 sm:gap-5 sm:p-5 xl:grid-cols-[1fr_26rem]">
           <div className="min-w-0">
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-emerald-200">
               Drinks
             </p>
-            <h1 className="mt-2 font-serif text-3xl leading-tight sm:text-5xl">
+            <h1 className="mt-2 font-serif text-2xl leading-tight sm:text-5xl">
               What can the cabinet make?
             </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-emerald-50/78">
+            <p className="mt-2 hidden max-w-2xl text-sm leading-6 text-emerald-50/78 sm:block">
               Search your bar, friends&apos; drinks, and a bigger starter catalog. The
               good stuff rises first: ready now, one ingredient away, then two away.
             </p>
           </div>
           <div className="grid grid-cols-3 gap-2 sm:gap-3">
-          <DrinkStat label="can make" value={`${canMakeCount}`} />
-          <DrinkStat label="missing 1" value={`${missingOneCount}`} />
-          <DrinkStat label="missing 2" value={`${missingTwoCount}`} />
+            <DrinkStat label="can make" value={`${canMakeCount}`} />
+            <DrinkStat label="missing 1" value={`${missingOneCount}`} />
+            <DrinkStat label="missing 2" value={`${missingTwoCount}`} />
           </div>
         </div>
       </section>
@@ -359,64 +429,25 @@ export function DrinksClient({ demoCabinetIngredients }: DrinksClientProps = {})
             <GlassWater aria-hidden="true" className="h-5 w-5 text-[var(--tomato)]" />
           </div>
 
-          <textarea
-            className="min-h-44 w-full resize-y rounded-lg border border-stone-200 bg-white p-4 text-sm leading-6 text-stone-950 outline-none transition placeholder:text-stone-400 focus:border-[var(--tomato)] focus:ring-4 focus:ring-red-100 xl:min-h-56"
-            disabled={isLoadingCabinet}
-            onChange={(event) => setCabinetText(event.target.value)}
-            placeholder={"Gin\nLime\nTonic water\nCampari\nSimple syrup"}
-            value={cabinetText}
-          />
-
-          {availableIngredients.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {availableIngredients.map((ingredient) => (
-                <span
-                  className="inline-flex min-h-8 items-center gap-2 rounded-full bg-stone-100 px-3 text-xs font-bold text-stone-600 ring-1 ring-stone-200"
-                  key={ingredient}
-                >
-                  {ingredient}
-                  <button
-                    className="text-stone-400 transition hover:text-red-600"
-                    onClick={() => removeIngredient(ingredient)}
-                    type="button"
-                  >
-                    <span className="sr-only">Remove {ingredient}</span>
-                    <X aria-hidden="true" className="h-3.5 w-3.5" />
-                  </button>
-                </span>
-              ))}
+          <details className="group xl:hidden">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-lg border border-stone-200 bg-white px-3 text-sm font-bold text-stone-700 shadow-sm [&::-webkit-details-marker]:hidden">
+              <span>
+                {availableIngredients.length
+                  ? `${availableIngredients.length} ingredients on hand`
+                  : "Add cabinet ingredients"}
+              </span>
+              <SlidersHorizontal
+                aria-hidden="true"
+                className="h-4 w-4 text-[var(--tomato)] transition group-open:rotate-90"
+              />
+            </summary>
+            <div className="mt-4">
+              {renderCabinetControls(true)}
             </div>
-          ) : null}
+          </details>
 
-          <button
-            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-[var(--tomato)] px-4 text-sm font-bold text-white shadow-sm transition hover:bg-[#a94e3a] disabled:cursor-not-allowed disabled:opacity-70"
-            disabled={isSavingCabinet || isLoadingCabinet}
-            onClick={saveCabinet}
-            type="button"
-          >
-            <Save aria-hidden="true" className="h-4 w-4" />
-            {isSavingCabinet ? "Saving..." : "Save cabinet"}
-          </button>
-
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-stone-400">
-              Ingredient ideas
-            </p>
-            <div className="mt-3 flex max-h-60 flex-wrap gap-2 overflow-y-auto pr-1">
-              {ingredientSuggestions
-                .filter((ingredient) => !availableIngredients.includes(ingredient))
-                .slice(0, 60)
-                .map((ingredient) => (
-                  <button
-                    className="min-h-8 rounded-full bg-white px-3 text-xs font-bold text-stone-600 ring-1 ring-stone-200 transition hover:bg-stone-50 hover:text-stone-950"
-                    key={ingredient}
-                    onClick={() => addIngredient(ingredient)}
-                    type="button"
-                  >
-                    + {ingredient}
-                  </button>
-                ))}
-            </div>
+          <div className="hidden xl:block">
+            {renderCabinetControls()}
           </div>
         </aside>
 
@@ -508,9 +539,9 @@ export function DrinksClient({ demoCabinetIngredients }: DrinksClientProps = {})
 
 function DrinkStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/10 p-3 text-center shadow-sm backdrop-blur sm:p-4">
-      <p className="font-serif text-3xl leading-none text-white">{value}</p>
-      <p className="mt-2 text-xs font-bold uppercase tracking-[0.14em] text-emerald-100/70">
+    <div className="rounded-xl border border-white/10 bg-white/10 p-2 text-center shadow-sm backdrop-blur sm:p-4">
+      <p className="font-serif text-2xl leading-none text-white sm:text-3xl">{value}</p>
+      <p className="mt-1 text-[0.65rem] font-bold uppercase tracking-[0.12em] text-emerald-100/70 sm:mt-2 sm:text-xs sm:tracking-[0.14em]">
         {label}
       </p>
     </div>

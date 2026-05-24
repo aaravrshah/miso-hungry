@@ -86,6 +86,13 @@ export function RecipeBrowser({ initialCategory = "All" }: RecipeBrowserProps) {
 
   function selectCategory(nextCategory: FilterValue) {
     setCategory(nextCategory);
+
+    window.requestAnimationFrame(() => {
+      document.getElementById("recipe-results")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
   }
 
   const selectedCategory =
@@ -204,7 +211,7 @@ export function RecipeBrowser({ initialCategory = "All" }: RecipeBrowserProps) {
             </p>
           ) : null}
 
-          <section className="space-y-3">
+          <section className="scroll-mt-24 space-y-3 lg:scroll-mt-8" id="recipe-results">
             <div className="flex items-end justify-between gap-3">
               <div className="min-w-0">
                 <h2 className="truncate font-serif text-2xl leading-tight text-stone-950 sm:text-3xl">

@@ -54,7 +54,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                     </div>
                   </header>
 
-                  <main className="mx-auto w-full max-w-7xl px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-6 sm:px-6 sm:pb-[calc(7.5rem+env(safe-area-inset-bottom))] lg:px-8 lg:pb-12 lg:pt-8">
+                  <main className="mx-auto w-full max-w-7xl px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-4 sm:px-6 sm:pb-[calc(7.5rem+env(safe-area-inset-bottom))] sm:pt-6 lg:px-8 lg:pb-12 lg:pt-8">
                     {children}
                   </main>
                 </div>

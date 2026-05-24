@@ -6,7 +6,7 @@ import {
   GlassWater,
   Home,
   LogOut,
-  Menu,
+  MoreHorizontal,
   Bell,
   PackageSearch,
   PlusCircle,
@@ -54,6 +54,14 @@ function isActivePath(pathname: string, href: string) {
   }
 
   return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function mobileNavItemClass(active: boolean) {
+  return `flex min-h-14 w-full appearance-none flex-col items-center justify-center gap-1 rounded-lg border px-1 text-center font-[inherit] text-[0.68rem] font-bold leading-none transition ${
+    active
+      ? "border-stone-200 bg-white text-[var(--tomato)] shadow-sm"
+      : "border-transparent bg-transparent text-stone-700 hover:text-stone-950"
+  }`;
 }
 
 export function Navigation() {
@@ -187,11 +195,7 @@ export function Navigation() {
 
             return (
               <Link
-                className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[0.68rem] font-bold transition ${
-                  active
-                    ? "border border-stone-200 bg-white text-[var(--tomato)] shadow-sm"
-                    : "border border-transparent bg-transparent text-stone-500"
-                }`}
+                className={mobileNavItemClass(active)}
                 href={item.href}
                 key={item.href}
                 aria-current={active ? "page" : undefined}
@@ -202,15 +206,12 @@ export function Navigation() {
             );
           })}
           <button
-            className={`flex min-h-14 appearance-none flex-col items-center justify-center gap-1 rounded-lg px-1 text-[0.68rem] font-bold transition ${
-              isMoreActive || isMoreOpen
-                ? "border border-stone-200 bg-white text-[var(--tomato)] shadow-sm"
-                : "border border-transparent bg-transparent text-stone-500"
-            }`}
+            aria-expanded={isMoreOpen}
+            className={mobileNavItemClass(isMoreActive || isMoreOpen)}
             onClick={() => setIsMoreOpen(true)}
             type="button"
           >
-            <Menu aria-hidden="true" className="h-5 w-5" />
+            <MoreHorizontal aria-hidden="true" className="h-5 w-5" />
             <span className="max-w-full truncate">More</span>
           </button>
         </div>

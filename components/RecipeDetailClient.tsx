@@ -200,7 +200,7 @@ export function RecipeDetailClient({ recipeId }: RecipeDetailClientProps) {
   }
 
   return (
-    <article className="space-y-8">
+    <article className="space-y-5 sm:space-y-8">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Link
           className="inline-flex items-center gap-2 text-sm font-bold text-[var(--tomato)]"
@@ -209,18 +209,18 @@ export function RecipeDetailClient({ recipeId }: RecipeDetailClientProps) {
           <ArrowLeft aria-hidden="true" className="h-4 w-4" />
           All recipes
         </Link>
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="flex flex-wrap gap-2 sm:flex-row">
           <button
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[var(--tomato)] px-4 text-sm font-bold text-white shadow-sm transition hover:bg-[#a94e3a]"
+            className="inline-flex min-h-10 min-w-[6.5rem] flex-[1.4] items-center justify-center gap-2 rounded-lg bg-[var(--tomato)] px-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#a94e3a] sm:min-h-11 sm:flex-none sm:px-4"
             onClick={() => setIsCookingMode(true)}
             type="button"
           >
             <Utensils aria-hidden="true" className="h-4 w-4" />
-            Cook This
+            Cook
           </button>
           {!isInMyCookbook ? (
             <button
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-4 text-sm font-bold text-stone-700 shadow-sm transition hover:bg-stone-50"
+              className="inline-flex min-h-10 min-w-[6rem] flex-1 items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-3 text-sm font-bold text-stone-700 shadow-sm transition hover:bg-stone-50 sm:min-h-11 sm:flex-none sm:px-4"
               disabled={isDuplicating}
               onClick={async () => {
                 setIsDuplicating(true);
@@ -250,7 +250,7 @@ export function RecipeDetailClient({ recipeId }: RecipeDetailClientProps) {
           ) : null}
           {canEditCurrentRecipe ? (
             <button
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-4 text-sm font-bold text-stone-700 shadow-sm transition hover:bg-stone-50"
+              className="inline-flex min-h-10 min-w-[5.25rem] flex-1 items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-3 text-sm font-bold text-stone-700 shadow-sm transition hover:bg-stone-50 sm:min-h-11 sm:flex-none sm:px-4"
               onClick={() => setEditing(true)}
               type="button"
             >
@@ -260,7 +260,7 @@ export function RecipeDetailClient({ recipeId }: RecipeDetailClientProps) {
           ) : null}
           {canDeleteCurrentRecipe ? (
             <button
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 text-sm font-bold text-red-700 shadow-sm transition hover:bg-red-100"
+              className="inline-flex min-h-10 min-w-[5.25rem] flex-1 items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 text-sm font-bold text-red-700 shadow-sm transition hover:bg-red-100 sm:min-h-11 sm:flex-none sm:px-4"
               disabled={isDeleting}
               onClick={async () => {
                 if (window.confirm(`Delete "${recipe.title}" from your cookbook?`)) {
@@ -296,7 +296,7 @@ export function RecipeDetailClient({ recipeId }: RecipeDetailClientProps) {
       ) : null}
 
       <section className="rounded-lg border border-stone-200 bg-white/76 p-4 shadow-sm sm:p-5">
-        <div className="grid gap-4 md:grid-cols-[9rem_1fr]">
+        <div className="grid grid-cols-[6.5rem_1fr] gap-3 sm:grid-cols-[8rem_1fr] sm:gap-4 md:grid-cols-[9rem_1fr]">
           <div className="relative aspect-square overflow-hidden rounded-lg bg-stone-200">
             {recipe.coverImageUrl ? (
               <Image
@@ -304,7 +304,7 @@ export function RecipeDetailClient({ recipeId }: RecipeDetailClientProps) {
                 className="h-full w-full object-cover"
                 fill
                 priority
-                sizes="9rem"
+                sizes="(min-width: 768px) 9rem, 6.5rem"
                 src={recipe.coverImageUrl}
               />
             ) : (
@@ -314,21 +314,21 @@ export function RecipeDetailClient({ recipeId }: RecipeDetailClientProps) {
             )}
           </div>
           <div className="min-w-0">
-            <h1 className="font-serif text-4xl leading-tight text-stone-950 sm:text-5xl">
+            <h1 className="font-serif text-3xl leading-tight text-stone-950 sm:text-5xl">
               {recipe.title}
             </h1>
-            <div className="mt-3 flex flex-wrap items-center gap-3">
-              <StarRating size="lg" value={rating} />
+            <div className="mt-2 flex flex-wrap items-center gap-2 sm:mt-3 sm:gap-3">
+              <StarRating size="md" value={rating} />
               <div className="flex flex-wrap gap-2">
                 {recipeCategories.map((category) => (
                   <CategoryPill className="min-h-8 px-3 py-1 text-xs" key={category} name={category} />
                 ))}
               </div>
             </div>
-            <p className="mt-3 text-sm leading-6 text-stone-600">
+            <p className="mt-2 line-clamp-3 text-sm leading-6 text-stone-600 sm:mt-3 sm:line-clamp-none">
               {recipe.description || recipe.notes}
             </p>
-            <div className="mt-4 flex flex-wrap gap-x-3 gap-y-2 text-sm text-stone-700">
+            <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1.5 text-sm text-stone-700 sm:mt-4 sm:gap-y-2">
               <strong>Prep</strong> {recipe.prepTime || "Not set"}
               <span aria-hidden="true">&bull;</span>
               <strong>Cook</strong> {recipe.cookTime || "Not set"}
@@ -337,7 +337,7 @@ export function RecipeDetailClient({ recipeId }: RecipeDetailClientProps) {
               <span aria-hidden="true">&bull;</span>
               <strong>Difficulty</strong> {recipe.difficulty ?? "Not set"}
             </div>
-            <div className="mt-4 space-y-3">
+            <div className="mt-3 space-y-2 sm:mt-4 sm:space-y-3">
               <div className="flex flex-wrap items-center gap-2">
                 {canDeleteCurrentRecipe ? (
                   <RecipeVisibilityControl
@@ -446,32 +446,49 @@ function RecipeVisibilityControl({
   value: RecipeVisibility;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-stone-200 bg-white/78 p-1 shadow-sm">
-      <span className="px-2 text-xs font-bold uppercase tracking-[0.14em] text-stone-400">
-        Visibility
-      </span>
-      {visibilityChoices.map((visibility) => (
-        <button
-          className={`rounded-md transition ${
-            value === visibility
-              ? "bg-[#fff4e4] ring-1 ring-orange-100"
-              : "hover:bg-stone-50"
-          }`}
+    <>
+      <label className="relative block sm:hidden">
+        <span className="sr-only">Recipe visibility</span>
+        <select
+          className="h-10 rounded-lg border border-stone-200 bg-white/90 px-3 pr-8 text-xs font-bold capitalize text-stone-700 shadow-sm outline-none focus:border-[var(--tomato)] focus:ring-4 focus:ring-red-100 disabled:cursor-not-allowed disabled:opacity-70"
           disabled={disabled}
-          key={visibility}
-          onClick={() => onChange(visibility)}
-          type="button"
+          onChange={(event) => onChange(event.target.value as RecipeVisibility)}
+          value={value}
         >
-          <RecipeVisibilityBadge
-            className={`border-0 bg-transparent px-2.5 py-1.5 shadow-none ${
-              value === visibility ? "text-[var(--tomato)]" : "text-stone-500"
+          {visibilityChoices.map((visibility) => (
+            <option key={visibility} value={visibility}>
+              {visibility}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="hidden flex-wrap items-center gap-1.5 rounded-lg border border-stone-200 bg-white/78 p-1 shadow-sm sm:flex">
+        <span className="px-2 text-xs font-bold uppercase tracking-[0.14em] text-stone-400">
+          Visibility
+        </span>
+        {visibilityChoices.map((visibility) => (
+          <button
+            className={`rounded-md transition ${
+              value === visibility
+                ? "bg-[#fff4e4] ring-1 ring-orange-100"
+                : "hover:bg-stone-50"
             }`}
-            showLabel
-            visibility={visibility}
-          />
-        </button>
-      ))}
-    </div>
+            disabled={disabled}
+            key={visibility}
+            onClick={() => onChange(visibility)}
+            type="button"
+          >
+            <RecipeVisibilityBadge
+              className={`border-0 bg-transparent px-2.5 py-1.5 shadow-none ${
+                value === visibility ? "text-[var(--tomato)]" : "text-stone-500"
+              }`}
+              showLabel
+              visibility={visibility}
+            />
+          </button>
+        ))}
+      </div>
+    </>
   );
 }
 
@@ -493,7 +510,6 @@ function OverviewSection({
   return (
     <div className="space-y-5">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <InfoTile label="Cuisine" value={recipe.cuisine || "Not set"} />
         <InfoTile label="Difficulty" value={recipe.difficulty ?? "Not set"} />
         <InfoTile label="Cook time" value={recipe.cookTime || "Not set"} />
         <InfoTile label="Times made" value={`${recipe.timesMade}`} />

@@ -87,20 +87,20 @@ export function FriendsClient() {
   }
 
   return (
-    <div className="space-y-8">
-      <section className="grid gap-4 lg:grid-cols-[1fr_22rem]">
+    <div className="space-y-5 sm:space-y-8">
+      <section className="grid gap-3 sm:gap-4 lg:grid-cols-[1fr_22rem]">
         <div>
-          <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--tomato)]">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--tomato)] sm:text-sm">
             Friends
           </p>
-          <h1 className="mt-2 font-serif text-4xl leading-tight text-stone-950 sm:text-5xl">
+          <h1 className="mt-1 font-serif text-3xl leading-tight text-stone-950 sm:mt-2 sm:text-5xl">
             A shared table for favorite recipes
           </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-stone-600">
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600 sm:mt-3">
             Add friends, visit profiles, try their recipes, and collaborate on keepers.
           </p>
         </div>
-        <div className="rounded-lg border border-stone-200 bg-white/76 p-4 shadow-sm">
+        <div className="rounded-lg border border-stone-200 bg-white/76 p-3 shadow-sm sm:p-4">
           <div className="flex items-center gap-3">
             <span className="grid h-10 w-10 place-items-center rounded-lg bg-rose-100 text-rose-700">
               <Users aria-hidden="true" className="h-5 w-5" />
@@ -123,7 +123,7 @@ export function FriendsClient() {
 
       {collaborationInvites.incoming.length > 0 ? (
         <section className="space-y-3">
-          <h2 className="font-serif text-3xl text-stone-950">Collaboration invites</h2>
+          <h2 className="font-serif text-2xl text-stone-950 sm:text-3xl">Collaboration invites</h2>
           <div className="grid gap-3 md:grid-cols-2">
             {collaborationInvites.incoming.map((invite) => (
               <article
@@ -175,7 +175,7 @@ export function FriendsClient() {
 
       {collaborationInvites.outgoing.length > 0 ? (
         <section className="space-y-3">
-          <h2 className="font-serif text-3xl text-stone-950">Pending recipe invites</h2>
+          <h2 className="font-serif text-2xl text-stone-950 sm:text-3xl">Pending recipe invites</h2>
           <div className="grid gap-3 md:grid-cols-2">
             {collaborationInvites.outgoing.map((invite) => (
               <article
@@ -196,7 +196,7 @@ export function FriendsClient() {
 
       {incomingRequests.length > 0 ? (
         <section className="space-y-3">
-          <h2 className="font-serif text-3xl text-stone-950">Friend requests</h2>
+          <h2 className="font-serif text-2xl text-stone-950 sm:text-3xl">Friend requests</h2>
           <div className="grid gap-3 md:grid-cols-2">
             {incomingRequests.map((request) => (
               <article
@@ -237,7 +237,7 @@ export function FriendsClient() {
       <section className="space-y-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="font-serif text-3xl text-stone-950">Your friends</h2>
+            <h2 className="font-serif text-2xl text-stone-950 sm:text-3xl">Your friends</h2>
             <p className="mt-1 text-sm text-stone-600">
               Friends can discover your recipes. Collaborators can edit recipes you invite them to.
             </p>
@@ -289,7 +289,7 @@ export function FriendsClient() {
 
       <section className="space-y-4">
         <div>
-          <h2 className="font-serif text-3xl text-stone-950">Find people</h2>
+          <h2 className="font-serif text-2xl text-stone-950 sm:text-3xl">Find people</h2>
           <p className="mt-1 text-sm text-stone-600">
             Search by display name or email to send a friend request.
           </p>

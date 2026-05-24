@@ -140,12 +140,12 @@ export function HomeDashboard() {
         </p>
       ) : null}
 
-      <section className="grid gap-4 sm:gap-6 xl:grid-cols-[1.08fr_0.92fr]">
-        <div className="rounded-lg border border-stone-200 bg-[#fff8ee]/82 p-4 shadow-sm sm:p-7">
-          <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--tomato)]">
+      <section className="grid gap-3 sm:gap-6 xl:grid-cols-[1.08fr_0.92fr]">
+        <div className="rounded-lg border border-stone-200 bg-[#fff8ee]/82 p-3 shadow-sm sm:p-7">
+          <p className="hidden text-sm font-bold uppercase tracking-[0.18em] text-[var(--tomato)] sm:block">
             Miso Hungry
           </p>
-          <h1 className="mt-2 max-w-3xl font-serif text-3xl leading-tight text-stone-950 sm:mt-3 sm:text-5xl">
+          <h1 className="max-w-3xl font-serif text-2xl leading-tight text-stone-950 sm:mt-3 sm:text-5xl">
             What should we cook next?
           </h1>
           <p className="mt-3 hidden max-w-2xl text-base leading-7 text-stone-600 sm:block">
@@ -153,7 +153,7 @@ export function HomeDashboard() {
             that have been sitting on the shelf a little too long.
           </p>
 
-          <div className="mt-4 grid grid-cols-3 gap-2 sm:mt-6 sm:gap-3">
+          <div className="mt-3 grid grid-cols-3 gap-2 sm:mt-6 sm:gap-3">
             <DashboardStat
               icon={CookingPot}
               label="recipes saved"
@@ -174,16 +174,16 @@ export function HomeDashboard() {
             />
           </div>
 
-          <div className="mt-4 flex flex-wrap gap-2 sm:mt-6 sm:gap-3">
+          <div className="mt-3 flex flex-wrap gap-2 sm:mt-6 sm:gap-3">
             <Link
-              className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-[var(--tomato)] px-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#a94e3a] sm:min-h-11 sm:flex-none sm:px-4"
+              className="inline-flex min-h-9 flex-1 items-center justify-center gap-2 rounded-lg bg-[var(--tomato)] px-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#a94e3a] sm:min-h-11 sm:flex-none sm:px-4"
               href="/recipes"
             >
               Browse recipes
               <ArrowRight aria-hidden="true" className="h-4 w-4" />
             </Link>
             <Link
-              className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-3 text-sm font-bold text-stone-700 shadow-sm transition hover:bg-stone-50 sm:min-h-11 sm:flex-none sm:px-4"
+              className="inline-flex min-h-9 flex-1 items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-3 text-sm font-bold text-stone-700 shadow-sm transition hover:bg-stone-50 sm:min-h-11 sm:flex-none sm:px-4"
               href="/add-recipe"
             >
               <PlusCircle aria-hidden="true" className="h-4 w-4" />
@@ -199,7 +199,7 @@ export function HomeDashboard() {
         <div className="space-y-4">
           <div className="flex items-end justify-between gap-4">
             <div>
-              <h2 className="font-serif text-3xl text-stone-950">Cook again soon</h2>
+              <h2 className="font-serif text-2xl text-stone-950 sm:text-3xl">Cook again soon</h2>
               <p className="mt-1 text-sm font-medium text-stone-500">
                 High-rated recipes that have been away from the table for a bit.
               </p>
@@ -264,7 +264,7 @@ export function HomeDashboard() {
       <section className="space-y-4">
         <div className="flex items-end justify-between gap-4">
           <div>
-            <h2 className="font-serif text-3xl text-stone-950">Recently made</h2>
+            <h2 className="font-serif text-2xl text-stone-950 sm:text-3xl">Recently made</h2>
             <p className="mt-1 text-sm font-medium text-stone-500">
               The current rotation on the kitchen counter.
             </p>
@@ -302,10 +302,10 @@ type DashboardStatProps = {
 
 function DashboardStat({ icon: Icon, label, tone, value }: DashboardStatProps) {
   return (
-    <div className="rounded-lg bg-white/75 p-3 ring-1 ring-stone-200 sm:p-4">
+    <div className="rounded-lg bg-white/75 p-2 ring-1 ring-stone-200 sm:p-4">
       <Icon aria-hidden="true" className={`h-4 w-4 sm:h-5 sm:w-5 ${tone}`} />
-      <p className="mt-2 text-2xl font-bold text-stone-950 sm:mt-3 sm:text-3xl">{value}</p>
-      <p className="text-xs font-medium leading-4 text-stone-500 sm:text-sm">{label}</p>
+      <p className="mt-1 text-xl font-bold text-stone-950 sm:mt-3 sm:text-3xl">{value}</p>
+      <p className="text-[0.68rem] font-medium leading-3 text-stone-500 sm:text-sm sm:leading-4">{label}</p>
     </div>
   );
 }
@@ -322,7 +322,7 @@ function TonightPickCard({ recipe }: { recipe?: Recipe }) {
 
   return (
     <Link
-      className="group relative min-h-[13rem] overflow-hidden rounded-lg border border-stone-200 bg-stone-900 shadow-sm sm:min-h-[18rem] xl:min-h-[22rem]"
+      className="group relative min-h-[10rem] overflow-hidden rounded-lg border border-stone-200 bg-stone-900 shadow-sm sm:min-h-[18rem] xl:min-h-[22rem]"
       href={`/recipes/${recipe.id}`}
     >
       {recipe.coverImageUrl ? (
@@ -335,23 +335,23 @@ function TonightPickCard({ recipe }: { recipe?: Recipe }) {
           src={recipe.coverImageUrl}
         />
       ) : (
-        <div className="grid h-full min-h-[13rem] place-items-center bg-stone-800 text-stone-500 sm:min-h-[18rem] xl:min-h-[22rem]">
+        <div className="grid h-full min-h-[10rem] place-items-center bg-stone-800 text-stone-500 sm:min-h-[18rem] xl:min-h-[22rem]">
           <ChefHat aria-hidden="true" className="h-12 w-12" />
         </div>
       )}
       <div className="absolute inset-0 bg-gradient-to-t from-stone-950/82 via-stone-950/28 to-transparent" />
-      <div className="absolute inset-x-0 bottom-0 p-4 text-white sm:p-7">
-        <p className="inline-flex items-center gap-2 rounded-full bg-white/14 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-white/85 ring-1 ring-white/20">
+      <div className="absolute inset-x-0 bottom-0 p-3 text-white sm:p-7">
+        <p className="inline-flex items-center gap-2 rounded-full bg-white/14 px-2.5 py-1 text-[0.65rem] font-bold uppercase tracking-[0.16em] text-white/85 ring-1 ring-white/20 sm:px-3 sm:text-xs">
           <Sparkles aria-hidden="true" className="h-4 w-4" />
           Tonight&apos;s pick
         </p>
-        <h2 className="mt-3 font-serif text-2xl leading-tight sm:mt-4 sm:text-4xl">
+        <h2 className="mt-2 font-serif text-xl leading-tight sm:mt-4 sm:text-4xl">
           {recipe.title}
         </h2>
-        <p className="mt-2 line-clamp-1 max-w-xl text-sm leading-6 text-white/82 sm:mt-3 sm:line-clamp-2">
+        <p className="mt-1 line-clamp-1 max-w-xl text-sm leading-6 text-white/82 sm:mt-3 sm:line-clamp-2">
           {recipe.description || recommendationReason(recipe)}
         </p>
-        <div className="mt-4 flex flex-wrap items-center gap-3 text-sm font-semibold text-white/85">
+        <div className="mt-2 flex flex-wrap items-center gap-3 text-xs font-semibold text-white/85 sm:mt-4 sm:text-sm">
           <span className="inline-flex items-center gap-2">
             <Star aria-hidden="true" className="h-4 w-4 fill-current" />
             {averageRating(recipe)?.toFixed(1) ?? "New"}/5

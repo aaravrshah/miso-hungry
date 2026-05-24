@@ -81,16 +81,6 @@ export const demoFriends: UserSummary[] = demoUsers
 
 export const demoCategories: Category[] = [
   {
-    accent: "bg-stone-100 text-stone-800 ring-stone-200",
-    coverImageUrl:
-      "https://images.unsplash.com/photo-1495521821757-a1efb6729352?auto=format&fit=crop&w=900&q=80",
-    description: "",
-    id: "demo-all",
-    name: "All recipes",
-    slug: "all-recipes",
-    sortOrder: 0,
-  },
-  {
     accent: "bg-rose-100 text-rose-800 ring-rose-200",
     coverImageUrl:
       "https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=900&q=80",
@@ -98,7 +88,7 @@ export const demoCategories: Category[] = [
     id: "demo-desserts",
     name: "Desserts",
     slug: "desserts",
-    sortOrder: 1,
+    sortOrder: 0,
   },
   {
     accent: "bg-orange-100 text-orange-900 ring-orange-200",
@@ -108,7 +98,7 @@ export const demoCategories: Category[] = [
     id: "demo-indian",
     name: "Indian Food",
     slug: "indian-food",
-    sortOrder: 2,
+    sortOrder: 1,
   },
   {
     accent: "bg-red-100 text-red-800 ring-red-200",
@@ -118,7 +108,7 @@ export const demoCategories: Category[] = [
     id: "demo-japanese",
     name: "Japanese Food",
     slug: "japanese-food",
-    sortOrder: 3,
+    sortOrder: 2,
   },
   {
     accent: "bg-yellow-100 text-yellow-900 ring-yellow-200",
@@ -128,7 +118,7 @@ export const demoCategories: Category[] = [
     id: "demo-pasta",
     name: "Pasta",
     slug: "pasta",
-    sortOrder: 4,
+    sortOrder: 3,
   },
   {
     accent: "bg-lime-100 text-lime-900 ring-lime-200",
@@ -138,7 +128,7 @@ export const demoCategories: Category[] = [
     id: "demo-drinks",
     name: "Drinks",
     slug: "drinks",
-    sortOrder: 5,
+    sortOrder: 4,
   },
   {
     accent: "bg-fuchsia-100 text-fuchsia-900 ring-fuchsia-200",
@@ -148,7 +138,7 @@ export const demoCategories: Category[] = [
     id: "demo-date-night",
     name: "Date Night",
     slug: "date-night",
-    sortOrder: 6,
+    sortOrder: 5,
   },
   {
     accent: "bg-sky-100 text-sky-900 ring-sky-200",
@@ -158,7 +148,7 @@ export const demoCategories: Category[] = [
     id: "demo-breakfast",
     name: "Breakfast",
     slug: "breakfast",
-    sortOrder: 7,
+    sortOrder: 6,
   },
 ];
 
@@ -176,7 +166,7 @@ export const demoRecipes: Recipe[] = [
     collaborators: sophieSummary ? [sophieSummary] : [],
     cookTime: "35 min",
     coverImageUrl:
-      "https://images.unsplash.com/photo-1605197183305-6c9b7f60f5bd?auto=format&fit=crop&w=900&q=80",
+      "https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=900&q=80",
     createdBy: "demo-aarav",
     createdByDisplayName: "Aarav",
     dateAdded: "2026-03-18",
