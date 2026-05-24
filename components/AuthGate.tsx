@@ -24,6 +24,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const [formError, setFormError] = useState<string | undefined>();
   const [formMessage, setFormMessage] = useState<string | undefined>();
   const [isSendingPasswordReset, setIsSendingPasswordReset] = useState(false);
+  const [staySignedIn, setStaySignedIn] = useState(true);
 
   async function submitAuth(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -32,9 +33,9 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
     try {
       if (mode === "sign-up") {
-        await signUp({ displayName, email, password });
+        await signUp({ displayName, email, password, staySignedIn });
       } else {
-        await signIn({ email, password });
+        await signIn({ email, password, staySignedIn });
       }
     } catch (authError) {
       setFormError(authError instanceof Error ? authError.message : "Authentication failed.");
@@ -46,7 +47,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
     setFormMessage(undefined);
 
     try {
-      await signInWithGoogle();
+      await signInWithGoogle(staySignedIn);
     } catch (authError) {
       setFormError(
         authError instanceof Error ? authError.message : "Google sign in failed.",
@@ -127,7 +128,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
               Sign in to the kitchen
             </h1>
             <p className="mt-3 text-sm leading-6 text-stone-600">
-              Stay signed in on this device and keep the cookbook synced.
+              Keep your recipes, pantry notes, and grocery list synced.
             </p>
           </div>
 
@@ -144,11 +145,6 @@ export function AuthGate({ children }: { children: ReactNode }) {
               Continue with Google
             </button>
           </div>
-
-          <p className="rounded-lg bg-stone-50 p-3 text-xs font-semibold leading-5 text-stone-600 md:hidden">
-            Google sign-in is off on mobile because it is unreliable in iPhone
-            home-screen apps. Use email and password on this device.
-          </p>
 
           <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-[0.16em] text-stone-400">
             <span className="h-px flex-1 bg-stone-200" />
@@ -222,6 +218,23 @@ export function AuthGate({ children }: { children: ReactNode }) {
               type="password"
               value={password}
             />
+          </label>
+
+          <label className="flex items-start gap-3 rounded-lg border border-stone-200 bg-white/75 p-3">
+            <input
+              checked={staySignedIn}
+              className="mt-0.5 h-5 w-5 rounded border-stone-300 accent-[var(--tomato)]"
+              onChange={(event) => setStaySignedIn(event.target.checked)}
+              type="checkbox"
+            />
+            <span className="text-sm leading-5 text-stone-700">
+              <span className="block font-bold text-stone-800">
+                Stay signed in on this device
+              </span>
+              <span className="block text-xs font-medium text-stone-500">
+                Turn this off on shared devices.
+              </span>
+            </span>
           </label>
 
           {formError || error ? (

@@ -2,6 +2,7 @@
 
 import {
   browserLocalPersistence,
+  browserSessionPersistence,
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
   onAuthStateChanged,
@@ -23,9 +24,9 @@ export function subscribeToAuthState(callback: (user: User | null) => void) {
   return onAuthStateChanged(auth, callback);
 }
 
-async function getAuthWithLocalPersistence() {
+async function getAuthWithPersistence(staySignedIn = true) {
   const { auth } = getFirebaseServices();
-  await setPersistence(auth, browserLocalPersistence);
+  await setPersistence(auth, staySignedIn ? browserLocalPersistence : browserSessionPersistence);
   return auth;
 }
 
@@ -147,6 +148,35 @@ export async function saveUserProfile(user: User, displayName: SupportedDisplayN
   return profile;
 }
 
+export async function updateDisplayName(displayName: string) {
+  const { auth, db } = getFirebaseServices();
+  const user = auth.currentUser;
+
+  if (!user) {
+    throw new Error("You must be signed in to update your profile.");
+  }
+
+  const nextDisplayName = displayName.trim();
+
+  if (!nextDisplayName) {
+    throw new Error("Display name is required.");
+  }
+
+  await updateProfile(user, { displayName: nextDisplayName });
+  await setDoc(
+    doc(db, firebaseCollections.users, user.uid),
+    {
+      displayName: nextDisplayName,
+      email: user.email,
+      photoURL: user.photoURL,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
+
+  return getOrCreateUserProfile(user);
+}
+
 async function getOrCreateUserProfile(user: User) {
   const profile = await getUserProfile(user.uid);
 
@@ -161,12 +191,14 @@ export async function signUpWithEmailPassword({
   displayName,
   email,
   password,
+  staySignedIn = true,
 }: {
   displayName: SupportedDisplayName | string;
   email: string;
   password: string;
+  staySignedIn?: boolean;
 }) {
-  const auth = await getAuthWithLocalPersistence();
+  const auth = await getAuthWithPersistence(staySignedIn);
   const credentials = await createUserWithEmailAndPassword(auth, email, password);
   await updateProfile(credentials.user, { displayName });
   return saveUserProfile(credentials.user, displayName);
@@ -175,28 +207,30 @@ export async function signUpWithEmailPassword({
 export async function signInWithEmailPassword({
   email,
   password,
+  staySignedIn = true,
 }: {
   email: string;
   password: string;
+  staySignedIn?: boolean;
 }) {
-  const auth = await getAuthWithLocalPersistence();
+  const auth = await getAuthWithPersistence(staySignedIn);
   const credentials = await signInWithEmailAndPassword(auth, email, password);
   return getOrCreateUserProfile(credentials.user);
 }
 
 export async function sendPasswordReset(email: string) {
-  const auth = await getAuthWithLocalPersistence();
+  const { auth } = getFirebaseServices();
   await sendFirebasePasswordResetEmail(auth, email);
 }
 
-export async function signInWithGoogle() {
+export async function signInWithGoogle(staySignedIn = true) {
   if (isIosHomeScreenApp()) {
     throw new Error(
       "Google sign in does not reliably complete inside iPhone home-screen apps. Open Miso Hungry in Safari to sign in with Google, or use email and password here.",
     );
   }
 
-  const auth = await getAuthWithLocalPersistence();
+  const auth = await getAuthWithPersistence(staySignedIn);
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: "select_account" });
 

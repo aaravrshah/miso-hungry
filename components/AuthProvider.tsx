@@ -21,6 +21,7 @@ import {
   signOutUser,
   signUpWithEmailPassword,
   subscribeToAuthState,
+  updateDisplayName,
 } from "@/lib/services/userService";
 
 type AuthContextValue = {
@@ -30,14 +31,20 @@ type AuthContextValue = {
   missingConfig: readonly string[];
   profile?: UserProfile;
   sendPasswordReset: (email: string) => Promise<void>;
-  signIn: (input: { email: string; password: string }) => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
+  signIn: (input: {
+    email: string;
+    password: string;
+    staySignedIn?: boolean;
+  }) => Promise<void>;
+  signInWithGoogle: (staySignedIn?: boolean) => Promise<void>;
   signOut: () => Promise<void>;
   signUp: (input: {
     displayName: SupportedDisplayName | string;
     email: string;
     password: string;
+    staySignedIn?: boolean;
   }) => Promise<void>;
+  updateDisplayName: (displayName: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -86,7 +93,11 @@ export function FirebaseAuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const signIn = useCallback(async (input: { email: string; password: string }) => {
+  const signIn = useCallback(async (input: {
+    email: string;
+    password: string;
+    staySignedIn?: boolean;
+  }) => {
     setIsLoading(true);
     setError(undefined);
 
@@ -114,12 +125,25 @@ export function FirebaseAuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const signInWithGoogle = useCallback(async () => {
+  const saveDisplayName = useCallback(async (displayName: string) => {
+    setError(undefined);
+
+    try {
+      const userProfile = await updateDisplayName(displayName);
+      setProfile(userProfile);
+    } catch (authError) {
+      const message = getAuthErrorMessage(authError, "Unable to update profile.");
+      setError(message);
+      throw new Error(message);
+    }
+  }, []);
+
+  const signInWithGoogle = useCallback(async (staySignedIn = true) => {
     setIsLoading(true);
     setError(undefined);
 
     try {
-      const userProfile = await signInWithGoogleProvider();
+      const userProfile = await signInWithGoogleProvider(staySignedIn);
       setProfile(userProfile);
     } catch (authError) {
       const message = getAuthErrorMessage(authError, "Unable to sign in with Google.");
@@ -135,6 +159,7 @@ export function FirebaseAuthProvider({ children }: { children: ReactNode }) {
       displayName: SupportedDisplayName | string;
       email: string;
       password: string;
+      staySignedIn?: boolean;
     }) => {
       setIsLoading(true);
       setError(undefined);
@@ -179,8 +204,19 @@ export function FirebaseAuthProvider({ children }: { children: ReactNode }) {
       signInWithGoogle,
       signOut,
       signUp,
+      updateDisplayName: saveDisplayName,
     }),
-    [error, isLoading, profile, resetPassword, signIn, signInWithGoogle, signOut, signUp],
+    [
+      error,
+      isLoading,
+      profile,
+      resetPassword,
+      saveDisplayName,
+      signIn,
+      signInWithGoogle,
+      signOut,
+      signUp,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

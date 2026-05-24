@@ -1,14 +1,15 @@
 "use client";
 
-import { ClipboardCheck, ImagePlus, Save } from "lucide-react";
+import { Check, ClipboardCheck, ImagePlus, Save, Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { StarRating } from "@/components/StarRating";
 import { useRecipes } from "@/components/RecipeStore";
 import { parseIngredients } from "@/lib/ingredientRecognition";
 import {
   formatTimerMinutes,
+  type Category,
   type CategoryName,
   type Difficulty,
   type Direction,
@@ -108,7 +109,7 @@ function ingredientTextFromRecipe(recipe: Recipe) {
 }
 
 function directionTextFromRecipe(recipe: Recipe) {
-  return recipe.directions.map(directionToText).join("\n\n");
+  return recipe.directions.map(directionToText).join("\n");
 }
 
 function cleanDirectionLine(line: string) {

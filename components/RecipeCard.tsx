@@ -21,10 +21,10 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
 
   return (
     <Link
-      className="group block overflow-hidden rounded-lg border border-stone-200 bg-white/78 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+      className="group grid grid-cols-[6.5rem_1fr] overflow-hidden rounded-lg border border-stone-200 bg-white/78 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:block"
       href={`/recipes/${recipe.id}`}
     >
-      <div className="relative aspect-[4/3] overflow-hidden bg-stone-200">
+      <div className="relative aspect-square overflow-hidden bg-stone-200 sm:aspect-[4/3]">
         {recipe.coverImageUrl ? (
           <Image
             alt={recipe.title}
@@ -39,10 +39,10 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
           </div>
         )}
       </div>
-      <div className="space-y-4 p-4">
+      <div className="min-w-0 space-y-2 p-3 sm:space-y-4 sm:p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 space-y-2">
-            <div className="flex flex-wrap gap-1.5">
+            <div className="hidden flex-wrap gap-1.5 sm:flex">
               {recipeCategories.slice(0, 2).map((category) => (
                 <CategoryPill
                   className="min-h-8 px-3 py-1 text-xs"
@@ -56,17 +56,22 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
                 </span>
               ) : null}
             </div>
-            <h3 className="line-clamp-2 font-serif text-xl leading-tight text-stone-950">
+            <h3 className="line-clamp-2 font-serif text-lg leading-tight text-stone-950 sm:text-xl">
               {recipe.title}
             </h3>
+            <p className="truncate text-xs font-bold uppercase tracking-[0.12em] text-stone-400 sm:hidden">
+              {recipeCategories.slice(0, 2).join(", ") || recipe.cuisine || "Recipe"}
+            </p>
           </div>
-          <div className="shrink-0 rounded-full bg-amber-50 px-2.5 py-1 ring-1 ring-amber-200">
+          <div className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 ring-1 ring-amber-200 sm:px-2.5 sm:py-1">
             <StarRating size="sm" value={rating} />
           </div>
         </div>
-        <p className="line-clamp-2 text-sm leading-6 text-stone-600">{recipe.description}</p>
+        <p className="hidden line-clamp-2 text-sm leading-6 text-stone-600 sm:block">
+          {recipe.description}
+        </p>
         {recipe.createdByDisplayName || recipe.collaborators?.length ? (
-          <p className="text-xs font-bold uppercase tracking-[0.12em] text-stone-400">
+          <p className="hidden text-xs font-bold uppercase tracking-[0.12em] text-stone-400 sm:block">
             {recipe.createdByDisplayName ? `By ${recipe.createdByDisplayName}` : "Shared"}
             {recipe.collaborators?.length
               ? ` · ${recipe.collaborators.length} collaborator${
@@ -76,7 +81,7 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
           </p>
         ) : null}
         {typeof recipe.aaravRating === "number" || typeof recipe.sophieRating === "number" ? (
-          <div className="flex flex-wrap gap-2 text-xs font-bold text-stone-600">
+          <div className="hidden flex-wrap gap-2 text-xs font-bold text-stone-600 sm:flex">
             {typeof recipe.aaravRating === "number" ? (
               <span className="rounded-full bg-stone-100 px-2.5 py-1">
                 Aarav {formatRating(recipe.aaravRating)}
@@ -89,7 +94,7 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
             ) : null}
           </div>
         ) : null}
-        <div className="flex flex-wrap gap-2">
+        <div className="hidden flex-wrap gap-2 sm:flex">
           {(recipe.tags ?? []).map((tag) => (
             <span
               className="rounded-full bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-600"
@@ -99,7 +104,7 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
             </span>
           ))}
         </div>
-        <div className="flex items-center justify-between gap-4 border-t border-stone-100 pt-3 text-xs font-medium text-stone-500">
+        <div className="flex items-center justify-between gap-3 text-xs font-medium text-stone-500 sm:border-t sm:border-stone-100 sm:pt-3">
           <span className="inline-flex items-center gap-1.5">
             <CalendarDays aria-hidden="true" className="h-4 w-4" />
             {formatRecipeDate(recipe.lastMadeDate)}

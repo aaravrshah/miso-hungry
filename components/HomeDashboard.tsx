@@ -133,27 +133,27 @@ export function HomeDashboard() {
   ];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5 sm:space-y-8">
       {isLoading && recipes.length === 0 ? (
         <p className="rounded-lg border border-stone-200 bg-white/72 p-4 text-sm font-semibold text-stone-600 shadow-sm">
           Loading your cookbook...
         </p>
       ) : null}
 
-      <section className="grid gap-6 xl:grid-cols-[1.08fr_0.92fr]">
-        <div className="rounded-lg border border-stone-200 bg-[#fff8ee]/82 p-5 shadow-sm sm:p-7">
+      <section className="grid gap-4 sm:gap-6 xl:grid-cols-[1.08fr_0.92fr]">
+        <div className="rounded-lg border border-stone-200 bg-[#fff8ee]/82 p-4 shadow-sm sm:p-7">
           <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--tomato)]">
             Miso Hungry
           </p>
-          <h1 className="mt-3 max-w-3xl font-serif text-4xl leading-tight text-stone-950 sm:text-5xl">
+          <h1 className="mt-2 max-w-3xl font-serif text-3xl leading-tight text-stone-950 sm:mt-3 sm:text-5xl">
             What should we cook next?
           </h1>
-          <p className="mt-4 max-w-2xl text-base leading-7 text-stone-600">
+          <p className="mt-3 hidden max-w-2xl text-base leading-7 text-stone-600 sm:block">
             A calmer command center for saved recipes, repeat favorites, and the dishes
             that have been sitting on the shelf a little too long.
           </p>
 
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+          <div className="mt-4 grid grid-cols-3 gap-2 sm:mt-6 sm:gap-3">
             <DashboardStat
               icon={CookingPot}
               label="recipes saved"
@@ -174,16 +174,16 @@ export function HomeDashboard() {
             />
           </div>
 
-          <div className="mt-6 flex flex-wrap gap-3">
+          <div className="mt-4 flex flex-wrap gap-2 sm:mt-6 sm:gap-3">
             <Link
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[var(--tomato)] px-4 text-sm font-bold text-white shadow-sm transition hover:bg-[#a94e3a]"
+              className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-[var(--tomato)] px-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#a94e3a] sm:min-h-11 sm:flex-none sm:px-4"
               href="/recipes"
             >
               Browse recipes
               <ArrowRight aria-hidden="true" className="h-4 w-4" />
             </Link>
             <Link
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-4 text-sm font-bold text-stone-700 shadow-sm transition hover:bg-stone-50"
+              className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-3 text-sm font-bold text-stone-700 shadow-sm transition hover:bg-stone-50 sm:min-h-11 sm:flex-none sm:px-4"
               href="/add-recipe"
             >
               <PlusCircle aria-hidden="true" className="h-4 w-4" />
@@ -302,10 +302,10 @@ type DashboardStatProps = {
 
 function DashboardStat({ icon: Icon, label, tone, value }: DashboardStatProps) {
   return (
-    <div className="rounded-lg bg-white/75 p-4 ring-1 ring-stone-200">
-      <Icon aria-hidden="true" className={`h-5 w-5 ${tone}`} />
-      <p className="mt-3 text-3xl font-bold text-stone-950">{value}</p>
-      <p className="text-sm font-medium text-stone-500">{label}</p>
+    <div className="rounded-lg bg-white/75 p-3 ring-1 ring-stone-200 sm:p-4">
+      <Icon aria-hidden="true" className={`h-4 w-4 sm:h-5 sm:w-5 ${tone}`} />
+      <p className="mt-2 text-2xl font-bold text-stone-950 sm:mt-3 sm:text-3xl">{value}</p>
+      <p className="text-xs font-medium leading-4 text-stone-500 sm:text-sm">{label}</p>
     </div>
   );
 }
@@ -322,7 +322,7 @@ function TonightPickCard({ recipe }: { recipe?: Recipe }) {
 
   return (
     <Link
-      className="group relative min-h-[22rem] overflow-hidden rounded-lg border border-stone-200 bg-stone-900 shadow-sm"
+      className="group relative min-h-[13rem] overflow-hidden rounded-lg border border-stone-200 bg-stone-900 shadow-sm sm:min-h-[18rem] xl:min-h-[22rem]"
       href={`/recipes/${recipe.id}`}
     >
       {recipe.coverImageUrl ? (
@@ -335,20 +335,20 @@ function TonightPickCard({ recipe }: { recipe?: Recipe }) {
           src={recipe.coverImageUrl}
         />
       ) : (
-        <div className="grid h-full min-h-[22rem] place-items-center bg-stone-800 text-stone-500">
+        <div className="grid h-full min-h-[13rem] place-items-center bg-stone-800 text-stone-500 sm:min-h-[18rem] xl:min-h-[22rem]">
           <ChefHat aria-hidden="true" className="h-12 w-12" />
         </div>
       )}
       <div className="absolute inset-0 bg-gradient-to-t from-stone-950/82 via-stone-950/28 to-transparent" />
-      <div className="absolute inset-x-0 bottom-0 p-5 text-white sm:p-7">
-      <p className="inline-flex items-center gap-2 rounded-full bg-white/14 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-white/85 ring-1 ring-white/20">
+      <div className="absolute inset-x-0 bottom-0 p-4 text-white sm:p-7">
+        <p className="inline-flex items-center gap-2 rounded-full bg-white/14 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-white/85 ring-1 ring-white/20">
           <Sparkles aria-hidden="true" className="h-4 w-4" />
           Tonight&apos;s pick
         </p>
-        <h2 className="mt-4 font-serif text-3xl leading-tight sm:text-4xl">
+        <h2 className="mt-3 font-serif text-2xl leading-tight sm:mt-4 sm:text-4xl">
           {recipe.title}
         </h2>
-        <p className="mt-3 line-clamp-2 max-w-xl text-sm leading-6 text-white/82">
+        <p className="mt-2 line-clamp-1 max-w-xl text-sm leading-6 text-white/82 sm:mt-3 sm:line-clamp-2">
           {recipe.description || recommendationReason(recipe)}
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-3 text-sm font-semibold text-white/85">
@@ -371,10 +371,10 @@ function RecommendationCard({ recipe }: { recipe: Recipe }) {
 
   return (
     <Link
-      className="grid gap-4 rounded-lg border border-stone-200 bg-white/75 p-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:grid-cols-[8.5rem_1fr]"
+      className="grid grid-cols-[5.75rem_1fr] gap-3 rounded-lg border border-stone-200 bg-white/75 p-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:grid-cols-[8.5rem_1fr] sm:gap-4"
       href={`/recipes/${recipe.id}`}
     >
-      <div className="relative aspect-[4/3] overflow-hidden rounded-lg bg-stone-100 sm:aspect-square">
+      <div className="relative aspect-square overflow-hidden rounded-lg bg-stone-100">
         {recipe.coverImageUrl ? (
           <Image
             alt={recipe.title}
@@ -395,15 +395,15 @@ function RecommendationCard({ recipe }: { recipe: Recipe }) {
             <CategoryPill className="min-h-8 px-3 py-1 text-xs" key={category} name={category} />
           ))}
         </div>
-        <h3 className="mt-3 line-clamp-2 font-serif text-2xl leading-tight text-stone-950">
+        <h3 className="mt-2 line-clamp-2 font-serif text-xl leading-tight text-stone-950 sm:mt-3 sm:text-2xl">
           {recipe.title}
         </h3>
-        <p className="mt-2 text-sm font-semibold text-[var(--tomato)]">
+        <p className="mt-1 line-clamp-2 text-xs font-semibold text-[var(--tomato)] sm:mt-2 sm:text-sm">
           {recommendationReason(recipe)}
         </p>
-        <div className="mt-3 flex flex-wrap gap-3 text-xs font-semibold text-stone-500">
+        <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold text-stone-500 sm:mt-3 sm:gap-3">
           <span>{recipe.prepTime || "Prep time open"}</span>
-          <span>{recipe.cookTime || "Cook time open"}</span>
+          <span className="hidden sm:inline">{recipe.cookTime || "Cook time open"}</span>
           <span>{recipe.timesMade}x made</span>
         </div>
       </div>
