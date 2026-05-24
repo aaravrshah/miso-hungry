@@ -32,6 +32,46 @@ function getFirebaseErrorCode(error: unknown) {
   return error && typeof error === "object" && "code" in error ? error.code : undefined;
 }
 
+function isIosHomeScreenApp() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  const navigatorWithStandalone = window.navigator as Navigator & {
+    standalone?: boolean;
+  };
+  const isAppleMobile =
+    /iPad|iPhone|iPod/.test(window.navigator.userAgent) ||
+    (window.navigator.platform === "MacIntel" && window.navigator.maxTouchPoints > 1);
+  const isStandalone =
+    window.matchMedia("(display-mode: standalone)").matches ||
+    Boolean(navigatorWithStandalone.standalone);
+
+  return isAppleMobile && isStandalone;
+}
+
+function withGooglePopupTimeout<T>(promise: Promise<T>) {
+  return new Promise<T>((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      reject(
+        new Error(
+          "Google sign in did not finish. On iPhone home-screen apps, open Miso Hungry in Safari to use Google sign in, or use email and password here.",
+        ),
+      );
+    }, 30000);
+
+    promise
+      .then((result) => {
+        window.clearTimeout(timeout);
+        resolve(result);
+      })
+      .catch((error) => {
+        window.clearTimeout(timeout);
+        reject(error);
+      });
+  });
+}
+
 export function getAuthErrorMessage(error: unknown, fallback = "Authentication failed.") {
   const code = getFirebaseErrorCode(error);
 
@@ -144,11 +184,17 @@ export async function signInWithEmailPassword({
 }
 
 export async function signInWithGoogle() {
+  if (isIosHomeScreenApp()) {
+    throw new Error(
+      "Google sign in does not reliably complete inside iPhone home-screen apps. Open Miso Hungry in Safari to sign in with Google, or use email and password here.",
+    );
+  }
+
   const auth = await getAuthWithLocalPersistence();
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: "select_account" });
 
-  const credentials = await signInWithPopup(auth, provider);
+  const credentials = await withGooglePopupTimeout(signInWithPopup(auth, provider));
   return getOrCreateUserProfile(credentials.user);
 }
 
