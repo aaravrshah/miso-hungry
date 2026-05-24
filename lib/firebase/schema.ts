@@ -1,7 +1,8 @@
-import type { Category, Recipe } from "@/lib/recipes";
+import type { Category, Recipe, RecipeVisibility } from "@/lib/recipes";
 
 export type SupportedDisplayName = "Aarav" | "Sophie";
 export type CookedBy = SupportedDisplayName | "Both" | string;
+export type AccountVisibility = "private" | "public";
 
 export type UserProfile = {
   id: string;
@@ -10,6 +11,8 @@ export type UserProfile = {
   username?: string;
   photoURL?: string | null;
   photoPath?: string;
+  accountVisibility?: AccountVisibility;
+  defaultRecipeVisibility?: RecipeVisibility;
   bio?: string;
   favoriteCuisines?: string[];
   createdAt?: unknown;
@@ -41,6 +44,21 @@ export type Friendship = {
   id: string;
   userIds: string[];
   users: Record<string, UserSummary>;
+  createdAt?: unknown;
+  updatedAt?: unknown;
+};
+
+export type CollaborationInviteStatus = "pending" | "accepted" | "declined";
+
+export type CollaborationInvite = {
+  id: string;
+  fromUser: UserSummary;
+  fromUserId: string;
+  recipeId: string;
+  recipeTitle: string;
+  status: CollaborationInviteStatus;
+  toUser: UserSummary;
+  toUserId: string;
   createdAt?: unknown;
   updatedAt?: unknown;
 };

@@ -9,12 +9,14 @@ import { useRecipes } from "@/components/RecipeStore";
 import { parseIngredients } from "@/lib/ingredientRecognition";
 import {
   formatTimerMinutes,
+  defaultRecipeVisibility,
   type Category,
   type CategoryName,
   type Difficulty,
   type Direction,
   type Ingredient,
   type Recipe,
+  type RecipeVisibility,
   uncategorizedCategoryName,
 } from "@/lib/recipes";
 
@@ -25,6 +27,27 @@ type AddRecipeFormProps = {
 };
 
 const difficulties: Difficulty[] = ["Easy", "Medium", "Hard"];
+const visibilityOptions: Array<{
+  description: string;
+  label: string;
+  value: RecipeVisibility;
+}> = [
+  {
+    description: "Only you and collaborators can see it.",
+    label: "Private",
+    value: "private",
+  },
+  {
+    description: "Friends can view it. Collaborators can edit.",
+    label: "Friends",
+    value: "friends",
+  },
+  {
+    description: "Anyone signed in can find it in Explore.",
+    label: "Public",
+    value: "public",
+  },
+];
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -55,6 +78,7 @@ function createBlankRecipe(): Recipe {
     dateAdded: today(),
     lastMadeDate: undefined,
     timesMade: 0,
+    visibility: defaultRecipeVisibility,
   };
 }
 
@@ -211,7 +235,15 @@ export function AddRecipeForm({
   const router = useRouter();
   const { profile } = useAuth();
   const { addRecipe, categories, updateRecipe } = useRecipes();
-  const initialRecipe = recipe ? recipeWithCategoryArrays(recipe) : createBlankRecipe();
+  const initialRecipe = recipe
+    ? {
+        ...recipeWithCategoryArrays(recipe),
+        visibility: recipe.visibility ?? profile?.defaultRecipeVisibility ?? defaultRecipeVisibility,
+      }
+    : {
+        ...createBlankRecipe(),
+        visibility: profile?.defaultRecipeVisibility ?? defaultRecipeVisibility,
+      };
   const [coverImageFile, setCoverImageFile] = useState<File | undefined>();
   const [emptyStructureAcknowledged, setEmptyStructureAcknowledged] = useState(false);
   const [error, setError] = useState<string | undefined>();
@@ -312,6 +344,7 @@ export function AddRecipeForm({
 
     const cleanedRecipe = cleanRecipe({
       ...formRecipe,
+      visibility: formRecipe.visibility ?? profile?.defaultRecipeVisibility ?? defaultRecipeVisibility,
       tags: tagsText
         .split(",")
         .map((tag) => tag.trim())
@@ -400,6 +433,10 @@ export function AddRecipeForm({
               categories={categories}
               onToggleCategory={toggleCategory}
               selectedCategoryIds={selectedCategoryIds}
+            />
+            <VisibilityPicker
+              onChange={(value) => updateField("visibility", value)}
+              value={formRecipe.visibility ?? profile?.defaultRecipeVisibility ?? defaultRecipeVisibility}
             />
           </div>
 
@@ -761,6 +798,39 @@ function CategoryPicker({
         ) : null}
       </div>
     </div>
+  );
+}
+
+function VisibilityPicker({
+  onChange,
+  value,
+}: {
+  onChange: (value: RecipeVisibility) => void;
+  value: RecipeVisibility;
+}) {
+  return (
+    <fieldset className="space-y-2">
+      <legend className="text-sm font-bold text-stone-700">Who can see this?</legend>
+      <div className="grid gap-2 sm:grid-cols-3">
+        {visibilityOptions.map((option) => (
+          <button
+            className={`min-h-20 rounded-lg border p-3 text-left transition ${
+              value === option.value
+                ? "border-[var(--tomato)] bg-[#fff4e4] text-stone-950 ring-2 ring-orange-100"
+                : "border-stone-200 bg-white text-stone-700 hover:bg-stone-50"
+            }`}
+            key={option.value}
+            onClick={() => onChange(option.value)}
+            type="button"
+          >
+            <span className="block text-sm font-bold">{option.label}</span>
+            <span className="mt-1 block text-xs font-medium leading-5 text-stone-500">
+              {option.description}
+            </span>
+          </button>
+        ))}
+      </div>
+    </fieldset>
   );
 }
 

@@ -1,6 +1,7 @@
 export type CategoryName = string;
 
 export type Difficulty = "Easy" | "Medium" | "Hard";
+export type RecipeVisibility = "private" | "friends" | "public";
 
 export type RecipeUserSummary = {
   id: string;
@@ -74,6 +75,13 @@ export type Recipe = {
   createdByDisplayName?: string;
   collaboratorIds?: string[];
   collaborators?: RecipeUserSummary[];
+  pendingCollaboratorIds?: string[];
+  pendingCollaborators?: RecipeUserSummary[];
+  visibility?: RecipeVisibility;
+  inspiredByRecipeId?: string;
+  inspiredByTitle?: string;
+  inspiredByUserId?: string;
+  inspiredByDisplayName?: string;
   averageUserRating?: number;
   ratingCount?: number;
   ratingTotal?: number;
@@ -81,6 +89,8 @@ export type Recipe = {
   updatedBy?: string;
   updatedByDisplayName?: string;
 };
+
+export const defaultRecipeVisibility: RecipeVisibility = "friends";
 
 export const uncategorizedCategoryName = "Uncategorized";
 
@@ -238,4 +248,44 @@ export function canEditRecipe(recipe: Recipe, userId?: string) {
 
 export function canDeleteRecipe(recipe: Recipe, userId?: string) {
   return Boolean(userId && recipe.createdBy === userId);
+}
+
+export function getRecipeVisibility(recipe: Recipe): RecipeVisibility {
+  return recipe.visibility ?? "private";
+}
+
+export function isRecipeInMyCookbook(recipe: Recipe, userId?: string) {
+  return Boolean(
+    userId && (recipe.createdBy === userId || recipe.collaboratorIds?.includes(userId)),
+  );
+}
+
+export function isFriendVisibleRecipe(
+  recipe: Recipe,
+  userId: string | undefined,
+  friendIds: Set<string>,
+) {
+  if (!userId || isRecipeInMyCookbook(recipe, userId) || !recipe.createdBy) {
+    return false;
+  }
+
+  const visibility = getRecipeVisibility(recipe);
+
+  return friendIds.has(recipe.createdBy) && (visibility === "friends" || visibility === "public");
+}
+
+export function isPublicVisibleRecipe(recipe: Recipe, userId?: string) {
+  return Boolean(userId && !isRecipeInMyCookbook(recipe, userId) && getRecipeVisibility(recipe) === "public");
+}
+
+export function canViewRecipe(
+  recipe: Recipe,
+  userId: string | undefined,
+  friendIds: Set<string>,
+) {
+  return (
+    isRecipeInMyCookbook(recipe, userId) ||
+    isFriendVisibleRecipe(recipe, userId, friendIds) ||
+    isPublicVisibleRecipe(recipe, userId)
+  );
 }

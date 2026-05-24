@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Search, UserPlus, Users, X } from "lucide-react";
+import { BookOpen, Check, Search, UserPlus, Users, X } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
@@ -26,7 +26,12 @@ function profileMatches(profile: UserProfile, query: string) {
 
 export function FriendsClient() {
   const { profile } = useAuth();
-  const { recipes } = useRecipes();
+  const {
+    acceptCollaborationInvite,
+    collaborationInvites,
+    declineCollaborationInvite,
+    friendRecipes,
+  } = useRecipes();
   const {
     acceptFriendRequest,
     allUsers,
@@ -60,9 +65,10 @@ export function FriendsClient() {
         .filter((user) => profileMatches(user, query)),
     [allUsers, profile?.id, query],
   );
-  const friendRecipes = useMemo(
-    () => recipes.filter((recipe) => recipe.createdBy && friendIds.has(recipe.createdBy)),
-    [friendIds, recipes],
+  const recipesFromFriends = useMemo(
+    () =>
+      friendRecipes.filter((recipe) => recipe.createdBy && friendIds.has(recipe.createdBy)),
+    [friendIds, friendRecipes],
   );
 
   async function runAction(actionId: string, action: () => Promise<void>) {
@@ -113,6 +119,79 @@ export function FriendsClient() {
         <p className="rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-700">
           {actionError ?? error}
         </p>
+      ) : null}
+
+      {collaborationInvites.incoming.length > 0 ? (
+        <section className="space-y-3">
+          <h2 className="font-serif text-3xl text-stone-950">Collaboration invites</h2>
+          <div className="grid gap-3 md:grid-cols-2">
+            {collaborationInvites.incoming.map((invite) => (
+              <article
+                className="rounded-lg border border-stone-200 bg-white/76 p-4 shadow-sm"
+                key={invite.id}
+              >
+                <div className="flex items-start gap-3">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#fff4e4] text-[var(--tomato)]">
+                    <BookOpen aria-hidden="true" className="h-5 w-5" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="font-serif text-xl leading-tight text-stone-950">
+                      {invite.recipeTitle}
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-stone-500">
+                      {invite.fromUser.displayName} invited you to collaborate.
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 flex gap-2">
+                  <button
+                    className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-[var(--tomato)] px-3 text-sm font-bold text-white"
+                    disabled={workingId === invite.id}
+                    onClick={() =>
+                      runAction(invite.id, () => acceptCollaborationInvite(invite.id))
+                    }
+                    type="button"
+                  >
+                    <Check aria-hidden="true" className="h-4 w-4" />
+                    Accept
+                  </button>
+                  <button
+                    className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-3 text-sm font-bold text-stone-600"
+                    disabled={workingId === invite.id}
+                    onClick={() =>
+                      runAction(invite.id, () => declineCollaborationInvite(invite.id))
+                    }
+                    type="button"
+                  >
+                    <X aria-hidden="true" className="h-4 w-4" />
+                    Decline
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {collaborationInvites.outgoing.length > 0 ? (
+        <section className="space-y-3">
+          <h2 className="font-serif text-3xl text-stone-950">Pending recipe invites</h2>
+          <div className="grid gap-3 md:grid-cols-2">
+            {collaborationInvites.outgoing.map((invite) => (
+              <article
+                className="rounded-lg border border-stone-200 bg-white/76 p-4 shadow-sm"
+                key={invite.id}
+              >
+                <p className="font-serif text-xl leading-tight text-stone-950">
+                  {invite.recipeTitle}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-stone-500">
+                  Waiting on {invite.toUser.displayName}
+                </p>
+              </article>
+            ))}
+          </div>
+        </section>
       ) : null}
 
       {incomingRequests.length > 0 ? (
@@ -274,10 +353,10 @@ export function FriendsClient() {
         </div>
       </section>
 
-      {friendRecipes.length > 0 ? (
+      {recipesFromFriends.length > 0 ? (
         <section className="space-y-4">
           <h2 className="font-serif text-3xl text-stone-950">Recipes from friends</h2>
-          <RecipeGrid recipes={friendRecipes.slice(0, 6)} />
+          <RecipeGrid recipes={recipesFromFriends.slice(0, 6)} />
         </section>
       ) : null}
     </div>
@@ -296,9 +375,6 @@ function UserLine({ user }: { user: UserSummary | UserProfile }) {
         </p>
         {user.username ? (
           <p className="truncate text-sm font-medium text-stone-500">@{user.username}</p>
-        ) : null}
-        {user.email ? (
-          <p className="truncate text-sm font-medium text-stone-500">{user.email}</p>
         ) : null}
       </div>
     </div>

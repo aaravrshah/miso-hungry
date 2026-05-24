@@ -23,10 +23,17 @@ import {
   reconcileCookingProgress,
 } from "@/components/CookingMode";
 import { RecipeGrid } from "@/components/RecipeGrid";
+import { RecipeVisibilityBadge } from "@/components/RecipeVisibilityBadge";
 import { useRecipes } from "@/components/RecipeStore";
 import { StarRating } from "@/components/StarRating";
 import { useSocial } from "@/components/SocialProvider";
-import type { CookedBy, CookLog, CookLogInput, UserSummary } from "@/lib/firebase/schema";
+import type {
+  CollaborationInvite,
+  CookedBy,
+  CookLog,
+  CookLogInput,
+  UserSummary,
+} from "@/lib/firebase/schema";
 import {
   averageRating,
   canDeleteRecipe,
@@ -35,6 +42,7 @@ import {
   formatRating,
   formatTimerMinutes,
   getRecipeCategoryNames,
+  getRecipeVisibility,
   type Recipe,
 } from "@/lib/recipes";
 import { todayString } from "@/lib/services/helpers";
@@ -52,29 +60,37 @@ export function RecipeDetailClient({ recipeId }: RecipeDetailClientProps) {
   const { friends } = useSocial();
   const {
     deleteRecipe,
+    duplicateRecipe,
+    collaborationInvites,
     error: storeError,
     isLoading,
     markRecipeMade,
     recipes,
     updateRecipe,
+    visibleRecipes,
+    sendCollaborationInvite,
   } = useRecipes();
   const [activeTab, setActiveTab] = useState<DetailTab>("Overview");
   const [actionError, setActionError] = useState<string | undefined>();
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isDuplicating, setIsDuplicating] = useState(false);
   const [isLoggingCook, setIsLoggingCook] = useState(false);
   const [isCookingMode, setIsCookingMode] = useState(false);
   const [cookingProgress, setCookingProgress] = useState(() => createCookingProgress());
   const [editing, setEditing] = useState(false);
-  const recipe = recipes.find((item) => item.id === recipeId);
+  const recipe = visibleRecipes.find((item) => item.id === recipeId);
   const recipeCategories = recipe ? getRecipeCategoryNames(recipe) : [];
   const canEditCurrentRecipe = recipe ? canEditRecipe(recipe, profile?.id) : false;
   const canDeleteCurrentRecipe = recipe ? canDeleteRecipe(recipe, profile?.id) : false;
+  const isInMyCookbook = recipe
+    ? recipes.some((myRecipe) => myRecipe.id === recipe.id)
+    : false;
   const cookingRecipeId = recipe?.id ?? "";
   const cookingIngredientCount = recipe?.ingredients.length ?? 0;
   const cookingDirectionCount = recipe?.directions.length ?? 0;
   const rating = recipe ? averageRating(recipe) : undefined;
   const relatedRecipes = recipe
-    ? recipes
+    ? visibleRecipes
         .filter(
           (item) =>
             item.id !== recipe.id &&
@@ -179,28 +195,59 @@ export function RecipeDetailClient({ recipeId }: RecipeDetailClientProps) {
             <Utensils aria-hidden="true" className="h-4 w-4" />
             Cook This
           </button>
-          <button
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-4 text-sm font-bold text-stone-700 shadow-sm transition hover:bg-stone-50"
-            disabled={isLoggingCook}
-            onClick={async () => {
-              setIsLoggingCook(true);
-              setActionError(undefined);
+          {isInMyCookbook ? (
+            <button
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-4 text-sm font-bold text-stone-700 shadow-sm transition hover:bg-stone-50"
+              disabled={isLoggingCook}
+              onClick={async () => {
+                setIsLoggingCook(true);
+                setActionError(undefined);
 
-              try {
-                await markRecipeMade(recipe.id);
-              } catch (markError) {
-                setActionError(
-                  markError instanceof Error ? markError.message : "Unable to log this cook.",
-                );
-              } finally {
-                setIsLoggingCook(false);
-              }
-            }}
-            type="button"
-          >
-            <Utensils aria-hidden="true" className="h-4 w-4" />
-            {isLoggingCook ? "Logging..." : "Mark made"}
-          </button>
+                try {
+                  await markRecipeMade(recipe.id);
+                } catch (markError) {
+                  setActionError(
+                    markError instanceof Error ? markError.message : "Unable to log this cook.",
+                  );
+                } finally {
+                  setIsLoggingCook(false);
+                }
+              }}
+              type="button"
+            >
+              <Utensils aria-hidden="true" className="h-4 w-4" />
+              {isLoggingCook ? "Logging..." : "Mark made"}
+            </button>
+          ) : (
+            <button
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-4 text-sm font-bold text-stone-700 shadow-sm transition hover:bg-stone-50"
+              disabled={isDuplicating}
+              onClick={async () => {
+                setIsDuplicating(true);
+                setActionError(undefined);
+
+                try {
+                  const duplicate = await duplicateRecipe(recipe.id);
+
+                  if (duplicate) {
+                    router.push(`/recipes/${duplicate.id}`);
+                  }
+                } catch (duplicateError) {
+                  setActionError(
+                    duplicateError instanceof Error
+                      ? duplicateError.message
+                      : "Unable to duplicate this recipe.",
+                  );
+                } finally {
+                  setIsDuplicating(false);
+                }
+              }}
+              type="button"
+            >
+              <Plus aria-hidden="true" className="h-4 w-4" />
+              {isDuplicating ? "Duplicating..." : "Duplicate"}
+            </button>
+          )}
           {canEditCurrentRecipe ? (
             <button
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-4 text-sm font-bold text-stone-700 shadow-sm transition hover:bg-stone-50"
@@ -291,6 +338,16 @@ export function RecipeDetailClient({ recipeId }: RecipeDetailClientProps) {
               <strong>Difficulty</strong> {recipe.difficulty ?? "Not set"}
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
+              <RecipeVisibilityBadge
+                className="border-orange-100 bg-[#fff4e4] px-3 py-1.5 text-sm text-[var(--tomato)] shadow-none"
+                showLabel
+                visibility={getRecipeVisibility(recipe)}
+              />
+              {recipe.inspiredByTitle ? (
+                <span className="rounded-full bg-stone-100 px-3 py-1.5 text-sm font-semibold text-stone-600">
+                  Inspired by {recipe.inspiredByDisplayName ?? "another cook"}
+                </span>
+              ) : null}
               {(recipe.tags ?? []).map((tag) => (
                 <span
                   className="rounded-full bg-stone-100 px-3 py-1.5 text-sm font-semibold text-stone-600"
@@ -331,7 +388,9 @@ export function RecipeDetailClient({ recipeId }: RecipeDetailClientProps) {
         {activeTab === "Overview" ? (
           <OverviewSection
             canManageCollaborators={canDeleteCurrentRecipe}
+            collaborationInvites={collaborationInvites.outgoing}
             friends={friends}
+            onInviteCollaborator={(friend) => sendCollaborationInvite(recipe.id, friend)}
             onUpdateCollaborators={async (collaborators) => {
               const collaboratorIds = collaborators.map((collaborator) => collaborator.id);
               await updateRecipe(recipe.id, {
@@ -361,12 +420,16 @@ export function RecipeDetailClient({ recipeId }: RecipeDetailClientProps) {
 
 function OverviewSection({
   canManageCollaborators,
+  collaborationInvites,
   friends,
+  onInviteCollaborator,
   onUpdateCollaborators,
   recipe,
 }: {
   canManageCollaborators: boolean;
+  collaborationInvites: CollaborationInvite[];
   friends: UserSummary[];
+  onInviteCollaborator: (friend: UserSummary) => Promise<void>;
   onUpdateCollaborators: (collaborators: UserSummary[]) => Promise<void>;
   recipe: Recipe;
 }) {
@@ -407,7 +470,9 @@ function OverviewSection({
       </div>
       <CollaboratorsPanel
         canManage={canManageCollaborators}
+        collaborationInvites={collaborationInvites}
         friends={friends}
+        onInviteCollaborator={onInviteCollaborator}
         onUpdateCollaborators={onUpdateCollaborators}
         recipe={recipe}
       />
@@ -417,12 +482,16 @@ function OverviewSection({
 
 function CollaboratorsPanel({
   canManage,
+  collaborationInvites,
   friends,
+  onInviteCollaborator,
   onUpdateCollaborators,
   recipe,
 }: {
   canManage: boolean;
+  collaborationInvites: CollaborationInvite[];
   friends: UserSummary[];
+  onInviteCollaborator: (friend: UserSummary) => Promise<void>;
   onUpdateCollaborators: (collaborators: UserSummary[]) => Promise<void>;
   recipe: Recipe;
 }) {
@@ -431,7 +500,23 @@ function CollaboratorsPanel({
   const [localError, setLocalError] = useState<string | undefined>();
   const collaborators = recipe.collaborators ?? [];
   const collaboratorIds = new Set(recipe.collaboratorIds ?? collaborators.map((user) => user.id));
-  const availableFriends = friends.filter((friend) => !collaboratorIds.has(friend.id));
+  const pendingInvites = collaborationInvites.filter(
+    (invite) => invite.recipeId === recipe.id && invite.status === "pending",
+  );
+  const pendingIds = new Set([
+    ...(recipe.pendingCollaboratorIds ?? []),
+    ...pendingInvites.map((invite) => invite.toUserId),
+  ]);
+  const pendingCollaborators = [
+    ...(recipe.pendingCollaborators ?? []),
+    ...pendingInvites.map((invite) => invite.toUser),
+  ].filter(
+    (collaborator, index, collaboratorsList) =>
+      collaboratorsList.findIndex((item) => item.id === collaborator.id) === index,
+  );
+  const availableFriends = friends.filter(
+    (friend) => !collaboratorIds.has(friend.id) && !pendingIds.has(friend.id),
+  );
 
   async function saveCollaborators(nextCollaborators: UserSummary[]) {
     setIsSaving(true);
@@ -451,6 +536,24 @@ function CollaboratorsPanel({
     }
   }
 
+  async function inviteCollaborator(friend: UserSummary) {
+    setIsSaving(true);
+    setLocalError(undefined);
+
+    try {
+      await onInviteCollaborator(friend);
+      setSelectedFriendId("");
+    } catch (collaboratorError) {
+      setLocalError(
+        collaboratorError instanceof Error
+          ? collaboratorError.message
+          : "Unable to send collaboration invite.",
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   return (
     <div className="rounded-lg bg-stone-50 p-4 ring-1 ring-stone-200">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -459,7 +562,7 @@ function CollaboratorsPanel({
             Collaborators
           </p>
           <p className="mt-1 text-sm leading-6 text-stone-600">
-            Friends listed here can edit this recipe.
+            Accepted collaborators can edit this recipe. New people must accept an invite first.
           </p>
         </div>
         {recipe.createdBy ? (
@@ -504,6 +607,25 @@ function CollaboratorsPanel({
         </p>
       )}
 
+      {pendingCollaborators.length > 0 ? (
+        <div className="mt-4">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-stone-400">
+            Invited
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {pendingCollaborators.map((collaborator) => (
+              <span
+                className="inline-flex min-h-9 items-center gap-2 rounded-full bg-amber-50 px-3 text-sm font-bold text-amber-800 ring-1 ring-amber-200"
+                key={collaborator.id}
+              >
+                {collaborator.displayName}
+                <span className="text-xs font-semibold">pending</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       {canManage ? (
         <div className="mt-4 flex flex-col gap-2 sm:flex-row">
           <select
@@ -528,12 +650,12 @@ function CollaboratorsPanel({
               const friend = friends.find((item) => item.id === selectedFriendId);
 
               if (friend) {
-                saveCollaborators([...collaborators, friend]);
+                inviteCollaborator(friend);
               }
             }}
             type="button"
           >
-            {isSaving ? "Saving..." : "Add collaborator"}
+            {isSaving ? "Sending..." : "Send invite"}
           </button>
         </div>
       ) : null}

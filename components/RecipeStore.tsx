@@ -9,16 +9,30 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { uncategorizedCategoryName, type Category, type Recipe } from "@/lib/recipes";
-import type { CookLog, CookLogInput, CookedBy } from "@/lib/firebase/schema";
 import {
+  canViewRecipe,
+  isFriendVisibleRecipe,
+  isPublicVisibleRecipe,
+  isRecipeInMyCookbook,
+  uncategorizedCategoryName,
+  type Category,
+  type Recipe,
+} from "@/lib/recipes";
+import type { CookLog, CookLogInput, CookedBy } from "@/lib/firebase/schema";
+import type { CollaborationInvite, UserSummary } from "@/lib/firebase/schema";
+import {
+  acceptCollaborationInvite as acceptCollaborationInviteService,
   createCategory as createFirestoreCategory,
+  createCollaborationInvite,
   createCookLog,
   createRecipe as createFirestoreRecipe,
   deleteCategory as deleteFirestoreCategory,
   deleteCookLog as deleteFirestoreCookLog,
   deleteRecipe as deleteFirestoreRecipe,
+  declineCollaborationInvite as declineCollaborationInviteService,
+  duplicateRecipeToCookbook,
   fetchCategories,
+  fetchCollaborationInvites,
   fetchCookLogs,
   fetchRecipes,
   reorderCategories as reorderFirestoreCategories,
@@ -28,6 +42,7 @@ import {
 } from "@/lib/services/recipeService";
 import { todayString } from "@/lib/services/helpers";
 import { useAuth } from "@/components/AuthProvider";
+import { useSocial } from "@/components/SocialProvider";
 
 type RecipeCreateInput = Omit<Recipe, "id"> & {
   id?: string;
@@ -35,10 +50,17 @@ type RecipeCreateInput = Omit<Recipe, "id"> & {
 
 type RecipeStoreValue = {
   categories: Category[];
+  collaborationInvites: {
+    incoming: CollaborationInvite[];
+    outgoing: CollaborationInvite[];
+  };
   error?: string;
   isLoading: boolean;
   cookLogsByRecipe: Record<string, CookLog[]>;
+  friendRecipes: Recipe[];
+  publicRecipes: Recipe[];
   recipes: Recipe[];
+  visibleRecipes: Recipe[];
   addCategory: (
     input: { coverImageFile?: File; coverImageUrl?: string; description: string; name: string },
   ) => Promise<Category>;
@@ -47,6 +69,7 @@ type RecipeStoreValue = {
   deleteCategory: (categoryId: string) => Promise<void>;
   deleteCookLog: (recipeId: string, cookLogId: string) => Promise<void>;
   deleteRecipe: (recipeId: string) => Promise<void>;
+  duplicateRecipe: (recipeId: string) => Promise<Recipe | undefined>;
   getRecipe: (recipeId: string) => Recipe | undefined;
   loadCookLogs: (recipeId: string) => Promise<CookLog[]>;
   markRecipeMade: (recipeId: string, notes?: string) => Promise<Recipe | undefined>;
@@ -63,6 +86,10 @@ type RecipeStoreValue = {
       sortOrder?: number;
     },
   ) => Promise<Category>;
+  acceptCollaborationInvite: (inviteId: string) => Promise<void>;
+  declineCollaborationInvite: (inviteId: string) => Promise<void>;
+  refreshCollaborationInvites: () => Promise<void>;
+  sendCollaborationInvite: (recipeId: string, toUser: UserSummary) => Promise<void>;
   updateCookLog: (
     recipeId: string,
     cookLogId: string,
@@ -83,20 +110,64 @@ function displayNameToCookedBy(displayName?: string): CookedBy {
 
 export function RecipeProvider({ children }: { children: ReactNode }) {
   const { profile } = useAuth();
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const { friends } = useSocial();
+  const [allRecipes, setAllRecipes] = useState<Recipe[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [collaborationInvites, setCollaborationInvites] = useState<{
+    incoming: CollaborationInvite[];
+    outgoing: CollaborationInvite[];
+  }>({
+    incoming: [],
+    outgoing: [],
+  });
   const [cookLogsByRecipe, setCookLogsByRecipe] = useState<Record<string, CookLog[]>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | undefined>();
+  const friendIds = useMemo(
+    () => new Set(friends.map((friend) => friend.id)),
+    [friends],
+  );
+  const visibleRecipes = useMemo(
+    () =>
+      profile
+        ? allRecipes.filter((recipe) => canViewRecipe(recipe, profile.id, friendIds))
+        : [],
+    [allRecipes, friendIds, profile],
+  );
+  const recipes = useMemo(
+    () =>
+      profile
+        ? visibleRecipes.filter((recipe) => isRecipeInMyCookbook(recipe, profile.id))
+        : [],
+    [profile, visibleRecipes],
+  );
+  const friendRecipes = useMemo(
+    () =>
+      profile
+        ? visibleRecipes.filter((recipe) =>
+            isFriendVisibleRecipe(recipe, profile.id, friendIds),
+          )
+        : [],
+    [friendIds, profile, visibleRecipes],
+  );
+  const publicRecipes = useMemo(
+    () =>
+      profile
+        ? visibleRecipes.filter((recipe) => isPublicVisibleRecipe(recipe, profile.id))
+        : [],
+    [profile, visibleRecipes],
+  );
 
   const updateRecipeInState = useCallback((savedRecipe: Recipe) => {
-    setRecipes((currentRecipes) =>
+    setAllRecipes((currentRecipes) =>
       currentRecipes.map((recipe) => (recipe.id === savedRecipe.id ? savedRecipe : recipe)),
     );
   }, []);
 
   const refreshRecipes = useCallback(async () => {
-    if (!profile) {
+    const currentProfile = profile;
+
+    if (!currentProfile) {
       return;
     }
 
@@ -104,13 +175,18 @@ export function RecipeProvider({ children }: { children: ReactNode }) {
     setError(undefined);
 
     try {
-      setRecipes(await fetchRecipes());
+      setAllRecipes(
+        await fetchRecipes({
+          friendIds: Array.from(friendIds),
+          userId: currentProfile.id,
+        }),
+      );
     } catch (recipeError) {
       setError(recipeError instanceof Error ? recipeError.message : "Unable to load recipes.");
     } finally {
       setIsLoading(false);
     }
-  }, [profile]);
+  }, [friendIds, profile]);
 
   const refreshCategories = useCallback(async () => {
     if (!profile) {
@@ -128,17 +204,39 @@ export function RecipeProvider({ children }: { children: ReactNode }) {
     }
   }, [profile]);
 
-  useEffect(() => {
+  const refreshCollaborationInvites = useCallback(async () => {
     if (!profile) {
+      return;
+    }
+
+    setError(undefined);
+
+    try {
+      setCollaborationInvites(await fetchCollaborationInvites(profile.id));
+    } catch (inviteError) {
+      setError(
+        inviteError instanceof Error
+          ? inviteError.message
+          : "Unable to load collaboration invites.",
+      );
+    }
+  }, [profile]);
+
+  useEffect(() => {
+    const currentProfile = profile;
+
+    if (!currentProfile) {
       window.queueMicrotask(() => {
-        setRecipes([]);
+        setAllRecipes([]);
         setCategories([]);
+        setCollaborationInvites({ incoming: [], outgoing: [] });
         setCookLogsByRecipe({});
         setIsLoading(false);
       });
       return;
     }
 
+    const currentUserId = currentProfile.id;
     let active = true;
 
     async function loadCookbookData() {
@@ -146,14 +244,19 @@ export function RecipeProvider({ children }: { children: ReactNode }) {
       setError(undefined);
 
       try {
-        const [nextCategories, nextRecipes] = await Promise.all([
+        const [nextCategories, nextRecipes, nextInvites] = await Promise.all([
           fetchCategories(),
-          fetchRecipes(),
+          fetchRecipes({
+            friendIds: Array.from(friendIds),
+            userId: currentUserId,
+          }),
+          fetchCollaborationInvites(currentUserId),
         ]);
 
         if (active) {
           setCategories(nextCategories);
-          setRecipes(nextRecipes);
+          setAllRecipes(nextRecipes);
+          setCollaborationInvites(nextInvites);
         }
       } catch (loadError) {
         if (active) {
@@ -173,7 +276,7 @@ export function RecipeProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
-  }, [profile]);
+  }, [friendIds, profile]);
 
   const addRecipe = useCallback(
     async (recipe: RecipeCreateInput, coverImageFile?: File) => {
@@ -187,7 +290,7 @@ export function RecipeProvider({ children }: { children: ReactNode }) {
         recipe: recipe as Recipe,
         user: profile,
       });
-      setRecipes((currentRecipes) => [savedRecipe, ...currentRecipes]);
+      setAllRecipes((currentRecipes) => [savedRecipe, ...currentRecipes]);
       return savedRecipe;
     },
     [profile],
@@ -207,7 +310,7 @@ export function RecipeProvider({ children }: { children: ReactNode }) {
         user: profile,
       });
 
-      setRecipes((currentRecipes) =>
+      setAllRecipes((currentRecipes) =>
         currentRecipes.map((recipe) => (recipe.id === recipeId ? savedRecipe : recipe)),
       );
 
@@ -219,7 +322,7 @@ export function RecipeProvider({ children }: { children: ReactNode }) {
   const deleteRecipe = useCallback(async (recipeId: string) => {
     setError(undefined);
     await deleteFirestoreRecipe(recipeId);
-    setRecipes((currentRecipes) =>
+    setAllRecipes((currentRecipes) =>
       currentRecipes.filter((recipe) => recipe.id !== recipeId),
     );
     setCookLogsByRecipe((currentLogs) => {
@@ -230,8 +333,141 @@ export function RecipeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const getRecipe = useCallback(
-    (recipeId: string) => recipes.find((recipe) => recipe.id === recipeId),
-    [recipes],
+    (recipeId: string) => visibleRecipes.find((recipe) => recipe.id === recipeId),
+    [visibleRecipes],
+  );
+
+  const duplicateRecipe = useCallback(
+    async (recipeId: string) => {
+      if (!profile) {
+        throw new Error("You must be signed in to duplicate a recipe.");
+      }
+
+      const recipe = visibleRecipes.find((item) => item.id === recipeId);
+
+      if (!recipe) {
+        return undefined;
+      }
+
+      setError(undefined);
+      const savedRecipe = await duplicateRecipeToCookbook({ recipe, user: profile });
+      setAllRecipes((currentRecipes) => [savedRecipe, ...currentRecipes]);
+      return savedRecipe;
+    },
+    [profile, visibleRecipes],
+  );
+
+  const sendCollaborationInvite = useCallback(
+    async (recipeId: string, toUser: UserSummary) => {
+      if (!profile) {
+        throw new Error("You must be signed in to invite collaborators.");
+      }
+
+      const recipe = visibleRecipes.find((item) => item.id === recipeId);
+
+      if (!recipe) {
+        throw new Error("Recipe not found.");
+      }
+
+      setError(undefined);
+      const invite = await createCollaborationInvite({ recipe, toUser, user: profile });
+      setCollaborationInvites((currentInvites) => ({
+        incoming: currentInvites.incoming,
+        outgoing: [
+          invite,
+          ...currentInvites.outgoing.filter((item) => item.id !== invite.id),
+        ],
+      }));
+      setAllRecipes((currentRecipes) =>
+        currentRecipes.map((item) =>
+          item.id === recipe.id
+            ? {
+                ...item,
+                pendingCollaboratorIds: Array.from(
+                  new Set([...(item.pendingCollaboratorIds ?? []), toUser.id]),
+                ),
+                pendingCollaborators: [
+                  ...(item.pendingCollaborators ?? []).filter(
+                    (collaborator) => collaborator.id !== toUser.id,
+                  ),
+                  toUser,
+                ],
+              }
+            : item,
+        ),
+      );
+    },
+    [profile, visibleRecipes],
+  );
+
+  const acceptCollaborationInvite = useCallback(
+    async (inviteId: string) => {
+      if (!profile) {
+        throw new Error("You must be signed in to accept collaboration invites.");
+      }
+
+      const invite = collaborationInvites.incoming.find((item) => item.id === inviteId);
+
+      if (!invite) {
+        throw new Error("Collaboration invite not found.");
+      }
+
+      setError(undefined);
+      const savedRecipe = await acceptCollaborationInviteService({ invite, user: profile });
+      setAllRecipes((currentRecipes) => {
+        const existing = currentRecipes.some((recipe) => recipe.id === savedRecipe.id);
+
+        return existing
+          ? currentRecipes.map((recipe) =>
+              recipe.id === savedRecipe.id ? savedRecipe : recipe,
+            )
+          : [savedRecipe, ...currentRecipes];
+      });
+      setCollaborationInvites((currentInvites) => ({
+        incoming: currentInvites.incoming.filter((item) => item.id !== inviteId),
+        outgoing: currentInvites.outgoing,
+      }));
+    },
+    [collaborationInvites.incoming, profile],
+  );
+
+  const declineCollaborationInvite = useCallback(
+    async (inviteId: string) => {
+      if (!profile) {
+        throw new Error("You must be signed in to decline collaboration invites.");
+      }
+
+      const invite =
+        collaborationInvites.incoming.find((item) => item.id === inviteId) ??
+        collaborationInvites.outgoing.find((item) => item.id === inviteId);
+
+      if (!invite) {
+        throw new Error("Collaboration invite not found.");
+      }
+
+      setError(undefined);
+      await declineCollaborationInviteService({ invite, user: profile });
+      setCollaborationInvites((currentInvites) => ({
+        incoming: currentInvites.incoming.filter((item) => item.id !== inviteId),
+        outgoing: currentInvites.outgoing.filter((item) => item.id !== inviteId),
+      }));
+      setAllRecipes((currentRecipes) =>
+        currentRecipes.map((recipe) =>
+          recipe.id === invite.recipeId
+            ? {
+                ...recipe,
+                pendingCollaboratorIds: (recipe.pendingCollaboratorIds ?? []).filter(
+                  (userId) => userId !== invite.toUserId,
+                ),
+                pendingCollaborators: (recipe.pendingCollaborators ?? []).filter(
+                  (collaborator) => collaborator.id !== invite.toUserId,
+                ),
+              }
+            : recipe,
+        ),
+      );
+    },
+    [collaborationInvites.incoming, collaborationInvites.outgoing, profile],
   );
 
   const loadCookLogs = useCallback(async (recipeId: string) => {
@@ -403,7 +639,7 @@ export function RecipeProvider({ children }: { children: ReactNode }) {
           category.id === categoryId ? savedCategory : category,
         ),
       );
-      setRecipes((currentRecipes) =>
+      setAllRecipes((currentRecipes) =>
         currentRecipes.map((recipe) => {
           const categoryIds = recipe.categoryIds?.length
             ? recipe.categoryIds
@@ -488,7 +724,7 @@ export function RecipeProvider({ children }: { children: ReactNode }) {
       setCategories((currentCategories) =>
         currentCategories.filter((currentCategory) => currentCategory.id !== categoryId),
       );
-      setRecipes((currentRecipes) =>
+      setAllRecipes((currentRecipes) =>
         currentRecipes.map((recipe) => {
           const categoryIds = (recipe.categoryIds?.length
             ? recipe.categoryIds
@@ -514,48 +750,66 @@ export function RecipeProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(
     () => ({
+      acceptCollaborationInvite,
       categories,
+      collaborationInvites,
       cookLogsByRecipe,
+      declineCollaborationInvite,
       error,
+      friendRecipes,
       isLoading,
+      publicRecipes,
       recipes,
+      visibleRecipes,
       addCategory,
       addCookLog,
       addRecipe,
       deleteCategory,
       deleteCookLog,
       deleteRecipe,
+      duplicateRecipe,
       getRecipe,
       loadCookLogs,
       markRecipeMade,
       refreshCategories,
+      refreshCollaborationInvites,
       refreshRecipes,
       reorderCategories,
+      sendCollaborationInvite,
       updateCategory,
       updateCookLog,
       updateRecipe,
     }),
     [
+      acceptCollaborationInvite,
       addCategory,
       addCookLog,
       addRecipe,
       categories,
+      collaborationInvites,
       cookLogsByRecipe,
       deleteCategory,
       deleteCookLog,
       deleteRecipe,
+      declineCollaborationInvite,
+      duplicateRecipe,
       error,
+      friendRecipes,
       getRecipe,
       isLoading,
       loadCookLogs,
       markRecipeMade,
+      publicRecipes,
       recipes,
       refreshCategories,
+      refreshCollaborationInvites,
       refreshRecipes,
       reorderCategories,
+      sendCollaborationInvite,
       updateCategory,
       updateCookLog,
       updateRecipe,
+      visibleRecipes,
     ],
   );
 

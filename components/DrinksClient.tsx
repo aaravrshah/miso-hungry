@@ -99,7 +99,7 @@ function statusClassName(status: DrinkMatchStatus) {
 
 export function DrinksClient() {
   const { profile } = useAuth();
-  const { recipes } = useRecipes();
+  const { friendRecipes, recipes } = useRecipes();
   const { friends } = useSocial();
   const [cabinetText, setCabinetText] = useState("");
   const [error, setError] = useState<string | undefined>();
@@ -171,7 +171,8 @@ export function DrinksClient() {
   }, [profile]);
 
   const candidates = useMemo(() => {
-    const savedDrinkCandidates = recipes.filter(isDrinkRecipe).flatMap((recipe) => {
+    const searchableRecipes = [...recipes, ...friendRecipes];
+    const savedDrinkCandidates = searchableRecipes.filter(isDrinkRecipe).flatMap((recipe) => {
       const isMine = !recipe.createdBy || recipe.createdBy === profile?.id;
       const friend = recipe.createdBy ? friendLookup.get(recipe.createdBy) : undefined;
 
@@ -200,7 +201,7 @@ export function DrinksClient() {
     const catalogCandidates = catalogDrinks.map(drinkCandidateFromCatalog);
 
     return [...savedDrinkCandidates, ...catalogCandidates];
-  }, [currentUserSummary, friendLookup, profile?.id, recipes]);
+  }, [currentUserSummary, friendLookup, friendRecipes, profile?.id, recipes]);
 
   const ingredientSuggestions = useMemo(
     () => collectDrinkIngredientSuggestions(candidates),

@@ -18,9 +18,16 @@ import { deleteField, doc, getDoc, serverTimestamp, setDoc } from "firebase/fire
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { getFirebaseServices } from "@/lib/firebase/client";
 import { firebaseCollections } from "@/lib/firebase/collections";
-import type { SupportedDisplayName, UserProfile } from "@/lib/firebase/schema";
+import type {
+  AccountVisibility,
+  SupportedDisplayName,
+  UserProfile,
+} from "@/lib/firebase/schema";
+import type { RecipeVisibility } from "@/lib/recipes";
 
 export type UserProfileUpdateInput = {
+  accountVisibility?: AccountVisibility;
+  defaultRecipeVisibility?: RecipeVisibility;
   displayName: string;
   photoFile?: File;
   username?: string;
@@ -183,6 +190,8 @@ export async function getUserProfile(userId: string) {
 export async function saveUserProfile(user: User, displayName: SupportedDisplayName | string) {
   const { db } = getFirebaseServices();
   const profile: UserProfile = {
+    accountVisibility: "private",
+    defaultRecipeVisibility: "friends",
     id: user.uid,
     displayName,
     email: user.email,
@@ -203,6 +212,8 @@ export async function saveUserProfile(user: User, displayName: SupportedDisplayN
 }
 
 export async function updateUserProfile({
+  accountVisibility,
+  defaultRecipeVisibility,
   displayName,
   photoFile,
   username,
@@ -242,6 +253,8 @@ export async function updateUserProfile({
     {
       displayName: nextDisplayName,
       email: user.email,
+      ...(accountVisibility ? { accountVisibility } : {}),
+      ...(defaultRecipeVisibility ? { defaultRecipeVisibility } : {}),
       ...usernameUpdate,
       photoURL: uploadedPhoto?.photoURL ?? user.photoURL,
       ...(uploadedPhoto?.photoPath ? { photoPath: uploadedPhoto.photoPath } : {}),

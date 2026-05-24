@@ -2,12 +2,14 @@ import { CalendarDays, ChefHat, Flame } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { CategoryPill } from "@/components/CategoryPill";
+import { RecipeVisibilityBadge } from "@/components/RecipeVisibilityBadge";
 import { StarRating } from "@/components/StarRating";
 import {
   averageRating,
   formatRecipeDate,
   formatRating,
   getRecipeCategoryNames,
+  getRecipeVisibility,
   type Recipe,
 } from "@/lib/recipes";
 
@@ -18,6 +20,7 @@ type RecipeCardProps = {
 export function RecipeCard({ recipe }: RecipeCardProps) {
   const rating = averageRating(recipe);
   const recipeCategories = getRecipeCategoryNames(recipe);
+  const visibility = getRecipeVisibility(recipe);
 
   return (
     <Link
@@ -25,6 +28,10 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
       href={`/recipes/${recipe.id}`}
     >
       <div className="relative aspect-square overflow-hidden bg-stone-200 sm:aspect-[4/3]">
+        <RecipeVisibilityBadge
+          className="absolute right-2 top-2 z-10"
+          visibility={visibility}
+        />
         {recipe.coverImageUrl ? (
           <Image
             alt={recipe.title}
@@ -71,13 +78,19 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
           {recipe.description}
         </p>
         {recipe.createdByDisplayName || recipe.collaborators?.length ? (
-          <p className="hidden text-xs font-bold uppercase tracking-[0.12em] text-stone-400 sm:block">
-            {recipe.createdByDisplayName ? `By ${recipe.createdByDisplayName}` : "Shared"}
-            {recipe.collaborators?.length
-              ? ` · ${recipe.collaborators.length} collaborator${
-                  recipe.collaborators.length === 1 ? "" : "s"
-                }`
-              : ""}
+          <p className="hidden text-xs font-bold uppercase tracking-[0.12em] text-stone-400 sm:flex sm:items-center sm:gap-2">
+            <span>{recipe.createdByDisplayName ? `By ${recipe.createdByDisplayName}` : "Shared"}</span>
+            <RecipeVisibilityBadge
+              className="border-stone-200 bg-stone-50 px-2 py-0.5 text-[0.68rem] normal-case tracking-normal text-stone-600 shadow-none"
+              showLabel
+              visibility={visibility}
+            />
+            {recipe.collaborators?.length ? (
+              <span>
+                {recipe.collaborators.length} collaborator
+                {recipe.collaborators.length === 1 ? "" : "s"}
+              </span>
+            ) : null}
           </p>
         ) : null}
         {typeof recipe.aaravRating === "number" || typeof recipe.sophieRating === "number" ? (

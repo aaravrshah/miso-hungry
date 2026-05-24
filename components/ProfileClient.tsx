@@ -21,7 +21,7 @@ function displayNameForUser(user?: Pick<UserProfile, "displayName" | "email"> | 
 
 export function ProfileClient({ userId }: ProfileClientProps) {
   const { profile: currentUser } = useAuth();
-  const { recipes } = useRecipes();
+  const { visibleRecipes } = useRecipes();
   const {
     allUsers,
     error,
@@ -76,20 +76,22 @@ export function ProfileClient({ userId }: ProfileClientProps) {
     [profileFriends, userLookup],
   );
   const ownedRecipes = useMemo(
-    () => recipes.filter((recipe) => recipe.createdBy === userId),
-    [recipes, userId],
+    () => visibleRecipes.filter((recipe) => recipe.createdBy === userId),
+    [visibleRecipes, userId],
   );
   const collaborationRecipes = useMemo(
     () =>
-      recipes.filter(
+      visibleRecipes.filter(
         (recipe) =>
           recipe.createdBy !== userId && recipe.collaboratorIds?.includes(userId),
       ),
-    [recipes, userId],
+    [visibleRecipes, userId],
   );
   const outgoingRequest = outgoingRequests.find((request) => request.toUserId === userId);
   const incomingRequest = incomingRequests.find((request) => request.fromUserId === userId);
   const isOwnProfile = currentUser?.id === userId;
+  const isFullProfileVisible =
+    isOwnProfile || isFriend(userId) || profile?.accountVisibility === "public";
 
   useEffect(() => {
     if (!profile) {
@@ -207,7 +209,10 @@ export function ProfileClient({ userId }: ProfileClientProps) {
               </h1>
               <div className="mt-2 space-y-1 text-sm font-semibold text-stone-500">
                 {profile.username ? <p>@{profile.username}</p> : null}
-                {profile.email ? <p className="truncate">{profile.email}</p> : null}
+                {isOwnProfile && profile.email ? (
+                  <p className="truncate">{profile.email}</p>
+                ) : null}
+                {!isFullProfileVisible ? <p>Private profile</p> : null}
               </div>
             </div>
           </div>
@@ -276,7 +281,7 @@ export function ProfileClient({ userId }: ProfileClientProps) {
           </div>
         </div>
 
-        {profile.bio ? (
+        {isFullProfileVisible && profile.bio ? (
           <p className="mt-5 max-w-3xl whitespace-pre-wrap text-sm leading-7 text-stone-700">
             {profile.bio}
           </p>

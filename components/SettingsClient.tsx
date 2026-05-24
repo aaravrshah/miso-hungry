@@ -5,9 +5,56 @@ import Link from "next/link";
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { UserAvatar } from "@/components/UserAvatar";
+import type { AccountVisibility } from "@/lib/firebase/schema";
+import { defaultRecipeVisibility, type RecipeVisibility } from "@/lib/recipes";
+
+const accountVisibilityOptions: Array<{
+  description: string;
+  label: string;
+  value: AccountVisibility;
+}> = [
+  {
+    description: "Non-friends only see a limited profile and can request you.",
+    label: "Private",
+    value: "private",
+  },
+  {
+    description: "Anyone signed in can see your public profile.",
+    label: "Public",
+    value: "public",
+  },
+];
+
+const recipeVisibilityOptions: Array<{
+  description: string;
+  label: string;
+  value: RecipeVisibility;
+}> = [
+  {
+    description: "Only you and collaborators can see new recipes.",
+    label: "Private",
+    value: "private",
+  },
+  {
+    description: "Friends can view new recipes by default.",
+    label: "Friends",
+    value: "friends",
+  },
+  {
+    description: "New recipes can appear in Explore.",
+    label: "Public",
+    value: "public",
+  },
+];
 
 export function SettingsClient() {
   const { error, profile, sendPasswordReset, updateUserProfile } = useAuth();
+  const [accountVisibilityDraft, setAccountVisibilityDraft] = useState<
+    AccountVisibility | undefined
+  >();
+  const [defaultRecipeVisibilityDraft, setDefaultRecipeVisibilityDraft] = useState<
+    RecipeVisibility | undefined
+  >();
   const [displayNameDraft, setDisplayNameDraft] = useState<string | undefined>();
   const [usernameDraft, setUsernameDraft] = useState<string | undefined>();
   const [photoFile, setPhotoFile] = useState<File | undefined>();
@@ -17,6 +64,12 @@ export function SettingsClient() {
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isSendingReset, setIsSendingReset] = useState(false);
   const profileHref = profile ? `/profiles/${profile.id}` : "/settings";
+  const accountVisibility =
+    accountVisibilityDraft ?? profile?.accountVisibility ?? "private";
+  const defaultVisibility =
+    defaultRecipeVisibilityDraft ??
+    profile?.defaultRecipeVisibility ??
+    defaultRecipeVisibility;
   const displayName = displayNameDraft ?? String(profile?.displayName ?? "");
   const username = usernameDraft ?? profile?.username ?? "";
   const avatarUrl = photoPreviewUrl ?? profile?.photoURL;
@@ -51,7 +104,15 @@ export function SettingsClient() {
     setIsSavingProfile(true);
 
     try {
-      await updateUserProfile({ displayName, photoFile, username });
+      await updateUserProfile({
+        accountVisibility,
+        defaultRecipeVisibility: defaultVisibility,
+        displayName,
+        photoFile,
+        username,
+      });
+      setAccountVisibilityDraft(undefined);
+      setDefaultRecipeVisibilityDraft(undefined);
       setDisplayNameDraft(undefined);
       setUsernameDraft(undefined);
       setPhotoFile(undefined);
@@ -173,6 +234,23 @@ export function SettingsClient() {
           </div>
         </div>
 
+        <div className="mt-5 grid gap-4 lg:grid-cols-2">
+          <PrivacyOptionGroup
+            description="This controls what people can see before they are friends with you."
+            label="Profile visibility"
+            onChange={setAccountVisibilityDraft}
+            options={accountVisibilityOptions}
+            value={accountVisibility}
+          />
+          <PrivacyOptionGroup
+            description="You can still override this on each individual recipe."
+            label="Default recipe visibility"
+            onChange={setDefaultRecipeVisibilityDraft}
+            options={recipeVisibilityOptions}
+            value={defaultVisibility}
+          />
+        </div>
+
         <button
           className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-[var(--tomato)] px-4 text-sm font-bold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
           disabled={isSavingProfile}
@@ -228,5 +306,45 @@ export function SettingsClient() {
         </p>
       ) : null}
     </div>
+  );
+}
+
+function PrivacyOptionGroup<Value extends string>({
+  description,
+  label,
+  onChange,
+  options,
+  value,
+}: {
+  description: string;
+  label: string;
+  onChange: (value: Value) => void;
+  options: Array<{ description: string; label: string; value: Value }>;
+  value: Value;
+}) {
+  return (
+    <fieldset className="space-y-2">
+      <legend className="text-sm font-bold text-stone-700">{label}</legend>
+      <p className="text-xs font-medium leading-5 text-stone-500">{description}</p>
+      <div className="grid gap-2">
+        {options.map((option) => (
+          <button
+            className={`rounded-lg border p-3 text-left transition ${
+              option.value === value
+                ? "border-[var(--tomato)] bg-[#fff4e4] text-stone-950 ring-2 ring-orange-100"
+                : "border-stone-200 bg-white text-stone-700 hover:bg-stone-50"
+            }`}
+            key={option.value}
+            onClick={() => onChange(option.value)}
+            type="button"
+          >
+            <span className="block text-sm font-bold">{option.label}</span>
+            <span className="mt-1 block text-xs font-medium leading-5 text-stone-500">
+              {option.description}
+            </span>
+          </button>
+        ))}
+      </div>
+    </fieldset>
   );
 }

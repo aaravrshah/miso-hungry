@@ -27,18 +27,22 @@ import type {
   CookedBy,
   CookLog,
   CookLogInput,
+  CollaborationInvite,
   FirestoreCategory,
   FirestoreRecipe,
+  UserSummary,
   UserProfile,
 } from "@/lib/firebase/schema";
 import {
   normalizeRatingToFive,
+  defaultRecipeVisibility,
   type RecipeUserRating,
   uncategorizedCategoryName,
   type Category,
   type Recipe,
 } from "@/lib/recipes";
 import { removeUndefinedDeep, slugify, todayString } from "@/lib/services/helpers";
+import { userSummaryFromProfile } from "@/lib/services/socialService";
 
 type CookLogMutationResult = {
   cookLog?: CookLog;
@@ -52,6 +56,39 @@ type CategoryInput = {
   description: string;
   name: string;
 };
+
+type FetchRecipesInput = {
+  friendIds?: string[];
+  userId: string;
+};
+
+function collaborationInviteId(recipeId: string, userId: string) {
+  return `${recipeId}__${userId}`;
+}
+
+function collaborationInviteFromDoc(
+  id: string,
+  data: Partial<CollaborationInvite>,
+): CollaborationInvite {
+  return {
+    id,
+    fromUser: data.fromUser ?? {
+      id: data.fromUserId ?? "",
+      displayName: "Cook",
+    },
+    fromUserId: data.fromUserId ?? data.fromUser?.id ?? "",
+    recipeId: data.recipeId ?? "",
+    recipeTitle: data.recipeTitle ?? "Untitled recipe",
+    status: data.status ?? "pending",
+    toUser: data.toUser ?? {
+      id: data.toUserId ?? "",
+      displayName: "Cook",
+    },
+    toUserId: data.toUserId ?? data.toUser?.id ?? "",
+    createdAt: data.createdAt,
+    updatedAt: data.updatedAt,
+  };
+}
 
 function categoryFromDoc(categoryId: string, data: Partial<Category>) {
   return {
@@ -393,6 +430,8 @@ function recipeFromDoc(recipeId: string, data: Partial<Recipe>) {
     categoryIds,
     collaboratorIds: data.collaboratorIds?.filter(Boolean) ?? [],
     collaborators: data.collaborators ?? [],
+    pendingCollaboratorIds: data.pendingCollaboratorIds?.filter(Boolean) ?? [],
+    pendingCollaborators: data.pendingCollaborators ?? [],
     timesMade: data.timesMade ?? 0,
   } as FirestoreRecipe;
 }
@@ -413,16 +452,55 @@ function normalizeRecipeForSave(recipe: Recipe) {
     categoryIds,
     collaboratorIds: recipe.collaboratorIds?.filter(Boolean) ?? [],
     collaborators: recipe.collaborators ?? [],
+    pendingCollaboratorIds: recipe.pendingCollaboratorIds?.filter(Boolean) ?? [],
+    pendingCollaborators: recipe.pendingCollaborators ?? [],
   };
 }
 
-export async function fetchRecipes() {
-  const { db } = getFirebaseServices();
-  const snapshot = await getDocs(
-    query(collection(db, firebaseCollections.recipes), orderBy("title", "asc")),
-  );
+function sortRecipes(recipes: Recipe[]) {
+  return [...recipes].sort((first, second) => first.title.localeCompare(second.title));
+}
 
-  return snapshot.docs.map((recipeDoc) => recipeFromDoc(recipeDoc.id, recipeDoc.data()));
+function recipesFromSnapshot(snapshot: Awaited<ReturnType<typeof getDocs>>) {
+  return snapshot.docs.map((recipeDoc) =>
+    recipeFromDoc(recipeDoc.id, recipeDoc.data() as Partial<Recipe>),
+  );
+}
+
+export async function fetchRecipes(input?: FetchRecipesInput) {
+  const { db } = getFirebaseServices();
+  const recipesCollection = collection(db, firebaseCollections.recipes);
+
+  if (!input) {
+    const snapshot = await getDocs(query(recipesCollection, orderBy("title", "asc")));
+
+    return snapshot.docs.map((recipeDoc) => recipeFromDoc(recipeDoc.id, recipeDoc.data()));
+  }
+
+  const friendIds = Array.from(new Set(input.friendIds ?? [])).filter(
+    (friendId) => friendId !== input.userId,
+  );
+  const snapshots = await Promise.all([
+    getDocs(query(recipesCollection, where("createdBy", "==", input.userId))),
+    getDocs(query(recipesCollection, where("collaboratorIds", "array-contains", input.userId))),
+    getDocs(query(recipesCollection, where("visibility", "==", "public"))),
+    ...friendIds.map((friendId) =>
+      getDocs(
+        query(
+          recipesCollection,
+          where("createdBy", "==", friendId),
+          where("visibility", "in", ["friends", "public"]),
+        ),
+      ),
+    ),
+  ]);
+  const recipesById = new Map<string, Recipe>();
+
+  for (const recipe of snapshots.flatMap(recipesFromSnapshot)) {
+    recipesById.set(recipe.id, recipe);
+  }
+
+  return sortRecipes(Array.from(recipesById.values()));
 }
 
 async function uploadRecipeCoverImage({
@@ -467,10 +545,14 @@ export async function createRecipe({
     id: recipeRef.id,
     collaboratorIds: recipe.collaboratorIds?.filter(Boolean) ?? [],
     collaborators: recipe.collaborators ?? [],
+    pendingCollaboratorIds: recipe.pendingCollaboratorIds?.filter(Boolean) ?? [],
+    pendingCollaborators: recipe.pendingCollaborators ?? [],
     createdBy: user.id,
     createdByDisplayName: user.displayName,
     updatedBy: user.id,
     updatedByDisplayName: user.displayName,
+    visibility:
+      recipe.visibility ?? user.defaultRecipeVisibility ?? defaultRecipeVisibility,
   };
 
   await setDoc(
@@ -483,6 +565,244 @@ export async function createRecipe({
   );
 
   return savedRecipe;
+}
+
+export async function duplicateRecipeToCookbook({
+  recipe,
+  user,
+}: {
+  recipe: Recipe;
+  user: UserProfile;
+}) {
+  const duplicate: Recipe = {
+    ...recipe,
+    aaravRating: undefined,
+    averageUserRating: undefined,
+    collaboratorIds: [],
+    collaborators: [],
+    pendingCollaboratorIds: [],
+    pendingCollaborators: [],
+    coverImagePath: undefined,
+    createdBy: undefined,
+    createdByDisplayName: undefined,
+    dateAdded: todayString(),
+    id: "",
+    inspiredByDisplayName: recipe.createdByDisplayName,
+    inspiredByRecipeId: recipe.id,
+    inspiredByTitle: recipe.title,
+    inspiredByUserId: recipe.createdBy,
+    lastMadeDate: undefined,
+    latestUserRatings: [],
+    ratingCount: 0,
+    ratingTotal: 0,
+    sophieRating: undefined,
+    timesMade: 0,
+    updatedBy: undefined,
+    updatedByDisplayName: undefined,
+    visibility: user.defaultRecipeVisibility ?? defaultRecipeVisibility,
+  };
+
+  return createRecipe({ recipe: duplicate, user });
+}
+
+export async function fetchCollaborationInvites(userId: string) {
+  const { db } = getFirebaseServices();
+  const [incomingSnapshot, outgoingSnapshot] = await Promise.all([
+    getDocs(
+      query(
+        collection(db, firebaseCollections.collaborationInvites),
+        where("toUserId", "==", userId),
+        where("status", "==", "pending"),
+      ),
+    ),
+    getDocs(
+      query(
+        collection(db, firebaseCollections.collaborationInvites),
+        where("fromUserId", "==", userId),
+        where("status", "==", "pending"),
+      ),
+    ),
+  ]);
+
+  return {
+    incoming: incomingSnapshot.docs.map((inviteDoc) =>
+      collaborationInviteFromDoc(inviteDoc.id, inviteDoc.data()),
+    ),
+    outgoing: outgoingSnapshot.docs.map((inviteDoc) =>
+      collaborationInviteFromDoc(inviteDoc.id, inviteDoc.data()),
+    ),
+  };
+}
+
+export async function createCollaborationInvite({
+  recipe,
+  toUser,
+  user,
+}: {
+  recipe: Recipe;
+  toUser: UserSummary;
+  user: UserProfile;
+}) {
+  if (recipe.createdBy !== user.id) {
+    throw new Error("Only the recipe owner can invite collaborators.");
+  }
+
+  if (toUser.id === user.id) {
+    throw new Error("You already own this recipe.");
+  }
+
+  if (recipe.collaboratorIds?.includes(toUser.id)) {
+    throw new Error(`${toUser.displayName} is already a collaborator.`);
+  }
+
+  const { db } = getFirebaseServices();
+  const inviteId = collaborationInviteId(recipe.id, toUser.id);
+  const inviteRef = doc(db, firebaseCollections.collaborationInvites, inviteId);
+  const inviteSnapshot = await getDoc(inviteRef);
+
+  if (inviteSnapshot.exists()) {
+    const invite = collaborationInviteFromDoc(inviteSnapshot.id, inviteSnapshot.data());
+
+    if (invite.status === "pending") {
+      throw new Error("That collaboration invite is already pending.");
+    }
+  }
+
+  const pendingCollaboratorIds = Array.from(
+    new Set([...(recipe.pendingCollaboratorIds ?? []), toUser.id]),
+  );
+  const pendingCollaborators = [
+    ...(recipe.pendingCollaborators ?? []).filter((collaborator) => collaborator.id !== toUser.id),
+    toUser,
+  ];
+  const invite: Omit<CollaborationInvite, "id"> = {
+    fromUser: userSummaryFromProfile(user),
+    fromUserId: user.id,
+    recipeId: recipe.id,
+    recipeTitle: recipe.title,
+    status: "pending",
+    toUser,
+    toUserId: toUser.id,
+  };
+
+  await Promise.all([
+    setDoc(inviteRef, {
+      ...invite,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }),
+    updateDoc(doc(db, firebaseCollections.recipes, recipe.id), {
+      pendingCollaboratorIds,
+      pendingCollaborators,
+      updatedAt: serverTimestamp(),
+      updatedBy: user.id,
+      updatedByDisplayName: user.displayName,
+    }),
+  ]);
+
+  return {
+    id: inviteId,
+    ...invite,
+  };
+}
+
+export async function acceptCollaborationInvite({
+  invite,
+  user,
+}: {
+  invite: CollaborationInvite;
+  user: UserProfile;
+}) {
+  if (invite.toUserId !== user.id) {
+    throw new Error("Only the invited person can accept this collaboration.");
+  }
+
+  const { db } = getFirebaseServices();
+  const recipeRef = doc(db, firebaseCollections.recipes, invite.recipeId);
+  const recipeSnapshot = await getDoc(recipeRef);
+
+  if (!recipeSnapshot.exists()) {
+    throw new Error("Recipe not found.");
+  }
+
+  const recipe = recipeFromDoc(recipeSnapshot.id, recipeSnapshot.data() as Partial<Recipe>);
+  const userSummary = userSummaryFromProfile(user);
+  const collaboratorIds = Array.from(
+    new Set([...(recipe.collaboratorIds ?? []), user.id]),
+  );
+  const collaborators = [
+    ...(recipe.collaborators ?? []).filter((collaborator) => collaborator.id !== user.id),
+    userSummary,
+  ];
+  const pendingCollaboratorIds = (recipe.pendingCollaboratorIds ?? []).filter(
+    (userId) => userId !== user.id,
+  );
+  const pendingCollaborators = (recipe.pendingCollaborators ?? []).filter(
+    (collaborator) => collaborator.id !== user.id,
+  );
+
+  await Promise.all([
+    updateDoc(recipeRef, {
+      collaboratorIds,
+      collaborators,
+      pendingCollaboratorIds,
+      pendingCollaborators,
+      updatedAt: serverTimestamp(),
+      updatedBy: user.id,
+      updatedByDisplayName: user.displayName,
+    }),
+    updateDoc(doc(db, firebaseCollections.collaborationInvites, invite.id), {
+      status: "accepted",
+      updatedAt: serverTimestamp(),
+    }),
+  ]);
+
+  return {
+    ...recipe,
+    collaboratorIds,
+    collaborators,
+    pendingCollaboratorIds,
+    pendingCollaborators,
+    updatedBy: user.id,
+    updatedByDisplayName: user.displayName,
+  };
+}
+
+export async function declineCollaborationInvite({
+  invite,
+  user,
+}: {
+  invite: CollaborationInvite;
+  user: UserProfile;
+}) {
+  if (invite.toUserId !== user.id && invite.fromUserId !== user.id) {
+    throw new Error("You cannot change this collaboration invite.");
+  }
+
+  const { db } = getFirebaseServices();
+  const recipeRef = doc(db, firebaseCollections.recipes, invite.recipeId);
+  const recipeSnapshot = await getDoc(recipeRef);
+  const recipe = recipeSnapshot.exists()
+    ? recipeFromDoc(recipeSnapshot.id, recipeSnapshot.data() as Partial<Recipe>)
+    : undefined;
+
+  await Promise.all([
+    updateDoc(doc(db, firebaseCollections.collaborationInvites, invite.id), {
+      status: "declined",
+      updatedAt: serverTimestamp(),
+    }),
+    recipe
+      ? updateDoc(recipeRef, {
+          pendingCollaboratorIds: (recipe.pendingCollaboratorIds ?? []).filter(
+            (userId) => userId !== invite.toUserId,
+          ),
+          pendingCollaborators: (recipe.pendingCollaborators ?? []).filter(
+            (collaborator) => collaborator.id !== invite.toUserId,
+          ),
+          updatedAt: serverTimestamp(),
+        })
+      : Promise.resolve(),
+  ]);
 }
 
 export async function updateRecipe({
@@ -506,6 +826,7 @@ export async function updateRecipe({
     id: recipeId,
     updatedBy: user.id,
     updatedByDisplayName: user.displayName,
+    visibility: recipe.visibility ?? user.defaultRecipeVisibility ?? defaultRecipeVisibility,
   };
 
   await updateDoc(
