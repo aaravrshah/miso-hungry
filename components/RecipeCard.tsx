@@ -78,15 +78,12 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
           {recipe.description}
         </p>
         {recipe.createdByDisplayName || recipe.collaborators?.length ? (
-          <p className="hidden text-xs font-bold uppercase tracking-[0.12em] text-stone-400 sm:flex sm:items-center sm:gap-2">
-            <span>{recipe.createdByDisplayName ? `By ${recipe.createdByDisplayName}` : "Shared"}</span>
-            <RecipeVisibilityBadge
-              className="border-stone-200 bg-stone-50 px-2 py-0.5 text-[0.68rem] normal-case tracking-normal text-stone-600 shadow-none"
-              showLabel
-              visibility={visibility}
-            />
+          <p className="hidden min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs font-bold uppercase tracking-[0.12em] text-stone-400 sm:flex">
+            <span className="truncate">
+              {recipe.createdByDisplayName ? `By ${recipe.createdByDisplayName}` : "Shared"}
+            </span>
             {recipe.collaborators?.length ? (
-              <span>
+              <span className="whitespace-nowrap text-stone-500">
                 {recipe.collaborators.length} collaborator
                 {recipe.collaborators.length === 1 ? "" : "s"}
               </span>

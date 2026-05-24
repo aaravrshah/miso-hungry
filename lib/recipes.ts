@@ -251,7 +251,7 @@ export function canDeleteRecipe(recipe: Recipe, userId?: string) {
 }
 
 export function getRecipeVisibility(recipe: Recipe): RecipeVisibility {
-  return recipe.visibility ?? "private";
+  return recipe.visibility ?? defaultRecipeVisibility;
 }
 
 export function isRecipeInMyCookbook(recipe: Recipe, userId?: string) {

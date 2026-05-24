@@ -44,6 +44,7 @@ import {
   getRecipeCategoryNames,
   getRecipeVisibility,
   type Recipe,
+  type RecipeVisibility,
 } from "@/lib/recipes";
 import { todayString } from "@/lib/services/helpers";
 
@@ -75,6 +76,7 @@ export function RecipeDetailClient({ recipeId }: RecipeDetailClientProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDuplicating, setIsDuplicating] = useState(false);
   const [isLoggingCook, setIsLoggingCook] = useState(false);
+  const [isSavingVisibility, setIsSavingVisibility] = useState(false);
   const [isCookingMode, setIsCookingMode] = useState(false);
   const [cookingProgress, setCookingProgress] = useState(() => createCookingProgress());
   const [editing, setEditing] = useState(false);
@@ -116,6 +118,30 @@ export function RecipeDetailClient({ recipeId }: RecipeDetailClientProps) {
       );
     });
   }, [cookingDirectionCount, cookingIngredientCount, cookingRecipeId]);
+
+  async function changeVisibility(visibility: RecipeVisibility) {
+    if (!recipe || getRecipeVisibility(recipe) === visibility) {
+      return;
+    }
+
+    setIsSavingVisibility(true);
+    setActionError(undefined);
+
+    try {
+      await updateRecipe(recipe.id, {
+        ...recipe,
+        visibility,
+      });
+    } catch (visibilityError) {
+      setActionError(
+        visibilityError instanceof Error
+          ? visibilityError.message
+          : "Unable to change recipe visibility.",
+      );
+    } finally {
+      setIsSavingVisibility(false);
+    }
+  }
 
   if (isLoading) {
     return (
@@ -337,28 +363,44 @@ export function RecipeDetailClient({ recipeId }: RecipeDetailClientProps) {
               <span aria-hidden="true">&bull;</span>
               <strong>Difficulty</strong> {recipe.difficulty ?? "Not set"}
             </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <RecipeVisibilityBadge
-                className="border-orange-100 bg-[#fff4e4] px-3 py-1.5 text-sm text-[var(--tomato)] shadow-none"
-                showLabel
-                visibility={getRecipeVisibility(recipe)}
-              />
-              {recipe.inspiredByTitle ? (
-                <span className="rounded-full bg-stone-100 px-3 py-1.5 text-sm font-semibold text-stone-600">
-                  Inspired by {recipe.inspiredByDisplayName ?? "another cook"}
-                </span>
+            <div className="mt-4 space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                {canDeleteCurrentRecipe ? (
+                  <RecipeVisibilityControl
+                    disabled={isSavingVisibility}
+                    onChange={changeVisibility}
+                    value={getRecipeVisibility(recipe)}
+                  />
+                ) : (
+                  <RecipeVisibilityBadge
+                    className="border-orange-100 bg-[#fff4e4] px-3 py-1.5 text-sm text-[var(--tomato)] shadow-none"
+                    showLabel
+                    visibility={getRecipeVisibility(recipe)}
+                  />
+                )}
+                {recipe.inspiredByTitle ? (
+                  <span className="rounded-full bg-stone-100 px-3 py-1.5 text-sm font-semibold text-stone-600">
+                    Inspired by {recipe.inspiredByDisplayName ?? "another cook"}
+                  </span>
+                ) : null}
+              </div>
+              {(recipe.tags?.length || recipe.cuisine) ? (
+                <div className="flex flex-wrap gap-2">
+                  {(recipe.tags ?? []).map((tag) => (
+                    <span
+                      className="rounded-full bg-stone-100 px-3 py-1.5 text-sm font-semibold text-stone-600"
+                      key={tag}
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                  {recipe.cuisine ? (
+                    <span className="rounded-full bg-stone-100 px-3 py-1.5 text-sm font-semibold text-stone-600">
+                      {recipe.cuisine}
+                    </span>
+                  ) : null}
+                </div>
               ) : null}
-              {(recipe.tags ?? []).map((tag) => (
-                <span
-                  className="rounded-full bg-stone-100 px-3 py-1.5 text-sm font-semibold text-stone-600"
-                  key={tag}
-                >
-                  {tag}
-                </span>
-              ))}
-              <span className="rounded-full bg-stone-100 px-3 py-1.5 text-sm font-semibold text-stone-600">
-                {recipe.cuisine || "Cuisine TBD"}
-              </span>
             </div>
           </div>
         </div>
@@ -415,6 +457,47 @@ export function RecipeDetailClient({ recipeId }: RecipeDetailClientProps) {
         </section>
       ) : null}
     </article>
+  );
+}
+
+const visibilityChoices: RecipeVisibility[] = ["private", "friends", "public"];
+
+function RecipeVisibilityControl({
+  disabled,
+  onChange,
+  value,
+}: {
+  disabled: boolean;
+  onChange: (visibility: RecipeVisibility) => void;
+  value: RecipeVisibility;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-stone-200 bg-white/78 p-1 shadow-sm">
+      <span className="px-2 text-xs font-bold uppercase tracking-[0.14em] text-stone-400">
+        Visibility
+      </span>
+      {visibilityChoices.map((visibility) => (
+        <button
+          className={`rounded-md transition ${
+            value === visibility
+              ? "bg-[#fff4e4] ring-1 ring-orange-100"
+              : "hover:bg-stone-50"
+          }`}
+          disabled={disabled}
+          key={visibility}
+          onClick={() => onChange(visibility)}
+          type="button"
+        >
+          <RecipeVisibilityBadge
+            className={`border-0 bg-transparent px-2.5 py-1.5 shadow-none ${
+              value === visibility ? "text-[var(--tomato)]" : "text-stone-500"
+            }`}
+            showLabel
+            visibility={visibility}
+          />
+        </button>
+      ))}
+    </div>
   );
 }
 
