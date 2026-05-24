@@ -38,11 +38,19 @@ import {
   defaultRecipeVisibility,
   type RecipeUserRating,
   uncategorizedCategoryName,
+  getRecipeVisibility,
   type Category,
   type Recipe,
 } from "@/lib/recipes";
 import { removeUndefinedDeep, slugify, todayString } from "@/lib/services/helpers";
-import { userSummaryFromProfile } from "@/lib/services/socialService";
+import {
+  fetchFriends,
+  userSummaryFromProfile,
+} from "@/lib/services/socialService";
+import {
+  createAppNotification,
+  createAppNotifications,
+} from "@/lib/services/notificationService";
 
 type CookLogMutationResult = {
   cookLog?: CookLog;
@@ -467,6 +475,14 @@ function recipesFromSnapshot(snapshot: Awaited<ReturnType<typeof getDocs>>) {
   );
 }
 
+function recipeHref(recipeId: string) {
+  return `/recipes/${recipeId}`;
+}
+
+function recipeOwnerNotificationRecipient(recipe: Recipe, user: UserProfile) {
+  return recipe.createdBy && recipe.createdBy !== user.id ? recipe.createdBy : undefined;
+}
+
 export async function fetchRecipes(input?: FetchRecipesInput) {
   const { db } = getFirebaseServices();
   const recipesCollection = collection(db, firebaseCollections.recipes);
@@ -564,6 +580,25 @@ export async function createRecipe({
     }),
   );
 
+  if (getRecipeVisibility(savedRecipe) !== "private") {
+    const friends = await fetchFriends(user.id).catch(() => []);
+
+    await createAppNotifications(
+      friends.map((friend) => ({
+        actor: userSummaryFromProfile(user),
+        actorId: user.id,
+        bin: "recipeActivity",
+        body: `${user.displayName} posted ${savedRecipe.title}.`,
+        emoji: "🍳",
+        href: recipeHref(savedRecipe.id),
+        recipientId: friend.id,
+        recipeId: savedRecipe.id,
+        title: "A friend posted a new recipe",
+        type: "friend_posted_recipe",
+      })),
+    ).catch(() => undefined);
+  }
+
   return savedRecipe;
 }
 
@@ -602,7 +637,28 @@ export async function duplicateRecipeToCookbook({
     visibility: user.defaultRecipeVisibility ?? defaultRecipeVisibility,
   };
 
-  return createRecipe({ recipe: duplicate, user });
+  const savedRecipe = await createRecipe({ recipe: duplicate, user });
+
+  if (
+    recipe.createdBy &&
+    recipe.createdBy !== user.id &&
+    getRecipeVisibility(recipe) === "public"
+  ) {
+    await createAppNotification({
+      actor: userSummaryFromProfile(user),
+      actorId: user.id,
+      bin: "recipeActivity",
+      body: `${user.displayName} saved a copy of ${recipe.title}.`,
+      emoji: "📌",
+      href: recipeHref(recipe.id),
+      recipientId: recipe.createdBy,
+      recipeId: recipe.id,
+      title: "Someone saved your public recipe",
+      type: "recipe_duplicated",
+    }).catch(() => undefined);
+  }
+
+  return savedRecipe;
 }
 
 export async function fetchCollaborationInvites(userId: string) {
@@ -699,6 +755,19 @@ export async function createCollaborationInvite({
       updatedByDisplayName: user.displayName,
     }),
   ]);
+
+  await createAppNotification({
+    actor: userSummaryFromProfile(user),
+    actorId: user.id,
+    bin: "collaboration",
+    body: `${user.displayName} invited you to collaborate on ${recipe.title}.`,
+    emoji: "🤝",
+    href: recipeHref(recipe.id),
+    recipientId: toUser.id,
+    recipeId: recipe.id,
+    title: "Someone added you as a recipe collaborator",
+    type: "collaborator_invite_received",
+  }).catch(() => undefined);
 
   return {
     id: inviteId,
@@ -820,6 +889,10 @@ export async function updateRecipe({
     ? await uploadRecipeCoverImage({ file: coverImageFile, recipeId, user })
     : undefined;
   const { db } = getFirebaseServices();
+  const existingSnapshot = await getDoc(doc(db, firebaseCollections.recipes, recipeId));
+  const existingRecipe = existingSnapshot.exists()
+    ? recipeFromDoc(existingSnapshot.id, existingSnapshot.data() as Partial<Recipe>)
+    : undefined;
   const savedRecipe: Recipe = {
     ...normalizeRecipeForSave(recipe),
     ...uploadedImage,
@@ -836,6 +909,34 @@ export async function updateRecipe({
       updatedAt: serverTimestamp(),
     }),
   );
+
+  if (
+    existingRecipe?.createdBy &&
+    existingRecipe.createdBy !== user.id &&
+    existingRecipe.collaboratorIds?.includes(user.id)
+  ) {
+    const recipients = Array.from(
+      new Set([
+        existingRecipe.createdBy,
+        ...(existingRecipe.collaboratorIds ?? []),
+      ]),
+    ).filter((recipientId) => recipientId !== user.id);
+
+    await createAppNotifications(
+      recipients.map((recipientId) => ({
+        actor: userSummaryFromProfile(user),
+        actorId: user.id,
+        bin: "collaboration",
+        body: `${user.displayName} edited ${savedRecipe.title}.`,
+        emoji: "✏️",
+        href: recipeHref(savedRecipe.id),
+        recipientId,
+        recipeId: savedRecipe.id,
+        title: "A collaborator edited a shared recipe",
+        type: "collaborator_edited_recipe",
+      })),
+    ).catch(() => undefined);
+  }
 
   return savedRecipe;
 }
@@ -1078,6 +1179,61 @@ export async function createCookLog({
     id: logRef.id,
     ...cookLog,
   };
+  const ownerRecipient = recipeOwnerNotificationRecipient(recipe, user);
+  const hasRating =
+    typeof cleanedInput.rating === "number" ||
+    typeof cleanedInput.aaravRating === "number" ||
+    typeof cleanedInput.sophieRating === "number";
+  const notifications = [
+    ...(ownerRecipient
+      ? [
+          {
+            actor: userSummaryFromProfile(user),
+            actorId: user.id,
+            bin: "recipeActivity" as const,
+            body: `${user.displayName} cooked ${recipe.title}.`,
+            emoji: "🍽️",
+            href: recipeHref(recipe.id),
+            recipientId: ownerRecipient,
+            recipeId: recipe.id,
+            title: "Someone cooked your recipe",
+            type: "recipe_cooked" as const,
+          },
+        ]
+      : []),
+    ...(ownerRecipient && hasRating
+      ? [
+          {
+            actor: userSummaryFromProfile(user),
+            actorId: user.id,
+            bin: "recipeActivity" as const,
+            body: `${user.displayName} rated ${recipe.title}.`,
+            emoji: "⭐",
+            href: recipeHref(recipe.id),
+            recipientId: ownerRecipient,
+            recipeId: recipe.id,
+            title: "Someone rated your recipe",
+            type: "recipe_rated" as const,
+          },
+        ]
+      : []),
+    ...(cleanedInput.taggedUsers ?? [])
+      .filter((taggedUser) => taggedUser.id !== user.id)
+      .map((taggedUser) => ({
+        actor: userSummaryFromProfile(user),
+        actorId: user.id,
+        bin: "recipeActivity" as const,
+        body: `${user.displayName} tagged you while cooking ${recipe.title}.`,
+        emoji: "🏷️",
+        href: recipeHref(recipe.id),
+        recipientId: taggedUser.id,
+        recipeId: recipe.id,
+        title: "Someone tagged you in a cook log",
+        type: "cook_log_tagged" as const,
+      })),
+  ];
+
+  await createAppNotifications(notifications).catch(() => undefined);
 
   return {
     cookLog: savedCookLog,
@@ -1135,6 +1291,44 @@ export async function updateCookLog({
     user,
   });
   const savedCookLog = synced.cookLogs.find((cookLog) => cookLog.id === cookLogId);
+  const ownerRecipient = recipeOwnerNotificationRecipient(synced.recipe, user);
+  const hasRating =
+    typeof cleanedInput.rating === "number" ||
+    typeof cleanedInput.aaravRating === "number" ||
+    typeof cleanedInput.sophieRating === "number";
+
+  await createAppNotifications([
+    ...(ownerRecipient && hasRating
+      ? [
+          {
+            actor: userSummaryFromProfile(user),
+            actorId: user.id,
+            bin: "recipeActivity" as const,
+            body: `${user.displayName} rated ${synced.recipe.title}.`,
+            emoji: "⭐",
+            href: recipeHref(recipeId),
+            recipientId: ownerRecipient,
+            recipeId,
+            title: "Someone rated your recipe",
+            type: "recipe_rated" as const,
+          },
+        ]
+      : []),
+    ...(cleanedInput.taggedUsers ?? [])
+      .filter((taggedUser) => taggedUser.id !== user.id)
+      .map((taggedUser) => ({
+        actor: userSummaryFromProfile(user),
+        actorId: user.id,
+        bin: "recipeActivity" as const,
+        body: `${user.displayName} tagged you while cooking ${synced.recipe.title}.`,
+        emoji: "🏷️",
+        href: recipeHref(recipeId),
+        recipientId: taggedUser.id,
+        recipeId,
+        title: "Someone tagged you in a cook log",
+        type: "cook_log_tagged" as const,
+      })),
+  ]).catch(() => undefined);
 
   return {
     cookLog: savedCookLog,

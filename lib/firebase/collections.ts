@@ -9,4 +9,5 @@ export const firebaseCollections = {
   friendships: "friendships",
   collaborationInvites: "collaborationInvites",
   drinkCabinets: "drinkCabinets",
+  notifications: "notifications",
 } as const;

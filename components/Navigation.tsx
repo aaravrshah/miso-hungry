@@ -7,6 +7,7 @@ import {
   Home,
   LogOut,
   Menu,
+  Bell,
   PackageSearch,
   PlusCircle,
   Settings,
@@ -25,6 +26,7 @@ const desktopNavItems = [
   { href: "/recipes", label: "Recipes", icon: BookOpen },
   { href: "/drinks", label: "Drinks", icon: GlassWater },
   { href: "/friends", label: "Friends", icon: Users },
+  { href: "/notifications", label: "Notifications", icon: Bell },
   { href: "/pantry", label: "Pantry", icon: PackageSearch },
   { href: "/grocery-list", label: "Grocery", icon: ShoppingBasket },
   { href: "/add-recipe", label: "Add", icon: PlusCircle },
@@ -40,6 +42,7 @@ const mobilePrimaryNavItems = [
 
 const mobileMoreNavItems = [
   { href: "/drinks", label: "Drinks", icon: GlassWater },
+  { href: "/notifications", label: "Notifications", icon: Bell },
   { href: "/grocery-list", label: "Grocery", icon: ShoppingBasket },
   { href: "/pantry", label: "Pantry", icon: PackageSearch },
   { href: "/settings", label: "Settings", icon: Settings },
@@ -186,8 +189,8 @@ export function Navigation() {
               <Link
                 className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[0.68rem] font-bold transition ${
                   active
-                    ? "bg-white text-[var(--tomato)] shadow-sm ring-1 ring-stone-200"
-                    : "text-stone-500"
+                    ? "border border-stone-200 bg-white text-[var(--tomato)] shadow-sm"
+                    : "border border-transparent bg-transparent text-stone-500"
                 }`}
                 href={item.href}
                 key={item.href}
@@ -199,10 +202,10 @@ export function Navigation() {
             );
           })}
           <button
-            className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[0.68rem] font-bold transition ${
+            className={`flex min-h-14 appearance-none flex-col items-center justify-center gap-1 rounded-lg px-1 text-[0.68rem] font-bold transition ${
               isMoreActive || isMoreOpen
-                ? "bg-white text-[var(--tomato)] shadow-sm ring-1 ring-stone-200"
-                : "text-stone-500"
+                ? "border border-stone-200 bg-white text-[var(--tomato)] shadow-sm"
+                : "border border-transparent bg-transparent text-stone-500"
             }`}
             onClick={() => setIsMoreOpen(true)}
             type="button"

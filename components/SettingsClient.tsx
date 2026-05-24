@@ -1,12 +1,13 @@
 "use client";
 
-import { AtSign, ImagePlus, KeyRound, Mail, Save } from "lucide-react";
+import { AtSign, Bell, ImagePlus, KeyRound, Mail, Save } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { UserAvatar } from "@/components/UserAvatar";
-import type { AccountVisibility } from "@/lib/firebase/schema";
+import type { AccountVisibility, NotificationBin, NotificationPreferences } from "@/lib/firebase/schema";
 import { defaultRecipeVisibility, type RecipeVisibility } from "@/lib/recipes";
+import { defaultNotificationPreferences } from "@/lib/services/userService";
 
 const accountVisibilityOptions: Array<{
   description: string;
@@ -47,6 +48,38 @@ const recipeVisibilityOptions: Array<{
   },
 ];
 
+const notificationOptions: Array<{
+  bin: NotificationBin;
+  description: string;
+  emoji: string;
+  label: string;
+}> = [
+  {
+    bin: "social",
+    description: "Friend requests and accepted friend requests.",
+    emoji: "👋",
+    label: "Social",
+  },
+  {
+    bin: "collaboration",
+    description: "Collaborator invites and shared recipe edits.",
+    emoji: "🤝",
+    label: "Collaboration",
+  },
+  {
+    bin: "recipeActivity",
+    description: "Saves, cooks, ratings, tags, and new recipes from friends.",
+    emoji: "🍽️",
+    label: "Recipe activity",
+  },
+  {
+    bin: "reminders",
+    description: "Meal plan and grocery reminders once scheduling is enabled.",
+    emoji: "⏰",
+    label: "Reminders",
+  },
+];
+
 export function SettingsClient() {
   const { error, profile, sendPasswordReset, updateUserProfile } = useAuth();
   const [accountVisibilityDraft, setAccountVisibilityDraft] = useState<
@@ -56,6 +89,9 @@ export function SettingsClient() {
     RecipeVisibility | undefined
   >();
   const [displayNameDraft, setDisplayNameDraft] = useState<string | undefined>();
+  const [notificationPreferencesDraft, setNotificationPreferencesDraft] = useState<
+    NotificationPreferences | undefined
+  >();
   const [usernameDraft, setUsernameDraft] = useState<string | undefined>();
   const [photoFile, setPhotoFile] = useState<File | undefined>();
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | undefined>();
@@ -71,6 +107,12 @@ export function SettingsClient() {
     profile?.defaultRecipeVisibility ??
     defaultRecipeVisibility;
   const displayName = displayNameDraft ?? String(profile?.displayName ?? "");
+  const notificationPreferences =
+    notificationPreferencesDraft ??
+    {
+      ...defaultNotificationPreferences,
+      ...(profile?.notificationPreferences ?? {}),
+    };
   const username = usernameDraft ?? profile?.username ?? "";
   const avatarUrl = photoPreviewUrl ?? profile?.photoURL;
 
@@ -108,12 +150,14 @@ export function SettingsClient() {
         accountVisibility,
         defaultRecipeVisibility: defaultVisibility,
         displayName,
+        notificationPreferences,
         photoFile,
         username,
       });
       setAccountVisibilityDraft(undefined);
       setDefaultRecipeVisibilityDraft(undefined);
       setDisplayNameDraft(undefined);
+      setNotificationPreferencesDraft(undefined);
       setUsernameDraft(undefined);
       setPhotoFile(undefined);
       setPhotoPreviewUrl(undefined);
@@ -146,6 +190,32 @@ export function SettingsClient() {
       );
     } finally {
       setIsSendingReset(false);
+    }
+  }
+
+  async function saveNotificationPreferences() {
+    setFormError(undefined);
+    setMessage(undefined);
+    setIsSavingProfile(true);
+
+    try {
+      await updateUserProfile({
+        accountVisibility,
+        defaultRecipeVisibility: defaultVisibility,
+        displayName,
+        notificationPreferences,
+        username,
+      });
+      setNotificationPreferencesDraft(undefined);
+      setMessage("Notification settings updated.");
+    } catch (notificationError) {
+      setFormError(
+        notificationError instanceof Error
+          ? notificationError.message
+          : "Unable to update notification settings.",
+      );
+    } finally {
+      setIsSavingProfile(false);
     }
   }
 
@@ -260,6 +330,74 @@ export function SettingsClient() {
           {isSavingProfile ? "Saving..." : "Save profile"}
         </button>
       </form>
+
+      <section className="rounded-lg border border-stone-200 bg-white/75 p-4 shadow-sm sm:p-5">
+        <div className="flex items-start gap-3">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#fff4e4] text-[var(--tomato)]">
+            <Bell aria-hidden="true" className="h-5 w-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h2 className="font-serif text-2xl leading-tight text-stone-950">
+              Notifications
+            </h2>
+            <p className="mt-1 text-sm leading-6 text-stone-600">
+              Choose which in-app notification bins should show up. Push alerts can use
+              these same settings later.
+            </p>
+          </div>
+        </div>
+        <div className="mt-4 grid gap-2">
+          {notificationOptions.map((option) => {
+            const enabled = notificationPreferences[option.bin] !== false;
+
+            return (
+              <button
+                className={`flex min-h-16 items-center gap-3 rounded-lg border p-3 text-left transition ${
+                  enabled
+                    ? "border-[var(--tomato)] bg-[#fff4e4] ring-2 ring-orange-100"
+                    : "border-stone-200 bg-white hover:bg-stone-50"
+                }`}
+                key={option.bin}
+                onClick={() =>
+                  setNotificationPreferencesDraft({
+                    ...notificationPreferences,
+                    [option.bin]: !enabled,
+                  })
+                }
+                type="button"
+              >
+                <span className="text-xl" aria-hidden="true">
+                  {option.emoji}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-bold text-stone-950">{option.label}</span>
+                  <span className="mt-1 block text-xs font-medium leading-5 text-stone-500">
+                    {option.description}
+                  </span>
+                </span>
+                <span
+                  className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                    enabled
+                      ? "bg-[var(--tomato)] text-white"
+                      : "bg-stone-100 text-stone-500"
+                  }`}
+                >
+                  {enabled ? "On" : "Off"}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <button
+          className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-[var(--tomato)] px-4 text-sm font-bold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
+          disabled={isSavingProfile}
+          onClick={saveNotificationPreferences}
+          type="button"
+        >
+          <Save aria-hidden="true" className="h-4 w-4" />
+          {isSavingProfile ? "Saving..." : "Save notification settings"}
+        </button>
+      </section>
 
       <section className="rounded-lg border border-stone-200 bg-white/75 p-4 shadow-sm sm:p-5">
         <div className="flex items-start gap-3">

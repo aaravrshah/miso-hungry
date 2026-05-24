@@ -3,6 +3,21 @@ import type { Category, Recipe, RecipeVisibility } from "@/lib/recipes";
 export type SupportedDisplayName = "Aarav" | "Sophie";
 export type CookedBy = SupportedDisplayName | "Both" | string;
 export type AccountVisibility = "private" | "public";
+export type NotificationBin = "social" | "collaboration" | "recipeActivity" | "reminders";
+export type NotificationPreferences = Record<NotificationBin, boolean>;
+
+export type NotificationType =
+  | "friend_request_received"
+  | "friend_request_accepted"
+  | "collaborator_invite_received"
+  | "collaborator_edited_recipe"
+  | "recipe_duplicated"
+  | "recipe_cooked"
+  | "recipe_rated"
+  | "cook_log_tagged"
+  | "friend_posted_recipe"
+  | "meal_plan_reminder"
+  | "grocery_list_reminder";
 
 export type UserProfile = {
   id: string;
@@ -13,6 +28,7 @@ export type UserProfile = {
   photoPath?: string;
   accountVisibility?: AccountVisibility;
   defaultRecipeVisibility?: RecipeVisibility;
+  notificationPreferences?: NotificationPreferences;
   bio?: string;
   favoriteCuisines?: string[];
   createdAt?: unknown;
@@ -170,4 +186,27 @@ export type DrinkCabinet = {
   ingredients: string[];
   createdAt?: unknown;
   updatedAt?: unknown;
+};
+
+export type AppNotification = {
+  id: string;
+  actor?: UserSummary;
+  actorId?: string;
+  bin: NotificationBin;
+  body: string;
+  createdAt?: unknown;
+  emoji: string;
+  href?: string;
+  isRead: boolean;
+  recipientId: string;
+  recipeId?: string;
+  title: string;
+  type: NotificationType;
+};
+
+export type NotificationCreateInput = Omit<
+  AppNotification,
+  "id" | "createdAt" | "isRead"
+> & {
+  isRead?: boolean;
 };

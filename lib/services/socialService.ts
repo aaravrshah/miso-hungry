@@ -21,6 +21,7 @@ import type {
   UserProfile,
   UserSummary,
 } from "@/lib/firebase/schema";
+import { createAppNotification } from "@/lib/services/notificationService";
 
 export function userSummaryFromProfile(profile: UserProfile): UserSummary {
   return {
@@ -202,6 +203,18 @@ export async function sendFriendRequest({
     updatedAt: serverTimestamp(),
   });
 
+  await createAppNotification({
+    actor: userSummaryFromProfile(currentUser),
+    actorId: currentUser.id,
+    bin: "social",
+    body: `${currentUser.displayName} wants to be friends on Miso Hungry.`,
+    emoji: "👋",
+    href: "/friends",
+    recipientId: toUser.id,
+    title: "Friend request received",
+    type: "friend_request_received",
+  }).catch(() => undefined);
+
   return {
     id: requestRef.id,
     ...request,
@@ -238,6 +251,18 @@ export async function acceptFriendRequest({
       updatedAt: serverTimestamp(),
     }),
   ]);
+
+  await createAppNotification({
+    actor: userSummaryFromProfile(currentUser),
+    actorId: currentUser.id,
+    bin: "social",
+    body: `${currentUser.displayName} accepted your friend request.`,
+    emoji: "🥂",
+    href: `/profiles/${currentUser.id}`,
+    recipientId: request.fromUserId,
+    title: "Friend request accepted",
+    type: "friend_request_accepted",
+  }).catch(() => undefined);
 }
 
 export async function declineFriendRequest({

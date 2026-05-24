@@ -20,6 +20,7 @@ import { getFirebaseServices } from "@/lib/firebase/client";
 import { firebaseCollections } from "@/lib/firebase/collections";
 import type {
   AccountVisibility,
+  NotificationPreferences,
   SupportedDisplayName,
   UserProfile,
 } from "@/lib/firebase/schema";
@@ -29,8 +30,16 @@ export type UserProfileUpdateInput = {
   accountVisibility?: AccountVisibility;
   defaultRecipeVisibility?: RecipeVisibility;
   displayName: string;
+  notificationPreferences?: NotificationPreferences;
   photoFile?: File;
   username?: string;
+};
+
+export const defaultNotificationPreferences: NotificationPreferences = {
+  collaboration: true,
+  recipeActivity: true,
+  reminders: true,
+  social: true,
 };
 
 export function subscribeToAuthState(callback: (user: User | null) => void) {
@@ -192,6 +201,7 @@ export async function saveUserProfile(user: User, displayName: SupportedDisplayN
   const profile: UserProfile = {
     accountVisibility: "private",
     defaultRecipeVisibility: "friends",
+    notificationPreferences: defaultNotificationPreferences,
     id: user.uid,
     displayName,
     email: user.email,
@@ -215,6 +225,7 @@ export async function updateUserProfile({
   accountVisibility,
   defaultRecipeVisibility,
   displayName,
+  notificationPreferences,
   photoFile,
   username,
 }: UserProfileUpdateInput) {
@@ -255,6 +266,7 @@ export async function updateUserProfile({
       email: user.email,
       ...(accountVisibility ? { accountVisibility } : {}),
       ...(defaultRecipeVisibility ? { defaultRecipeVisibility } : {}),
+      ...(notificationPreferences ? { notificationPreferences } : {}),
       ...usernameUpdate,
       photoURL: uploadedPhoto?.photoURL ?? user.photoURL,
       ...(uploadedPhoto?.photoPath ? { photoPath: uploadedPhoto.photoPath } : {}),
