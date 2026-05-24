@@ -22,6 +22,8 @@ import {
   signUpWithEmailPassword,
   subscribeToAuthState,
   updateDisplayName,
+  updateUserProfile,
+  type UserProfileUpdateInput,
 } from "@/lib/services/userService";
 
 type AuthContextValue = {
@@ -45,6 +47,7 @@ type AuthContextValue = {
     staySignedIn?: boolean;
   }) => Promise<void>;
   updateDisplayName: (displayName: string) => Promise<void>;
+  updateUserProfile: (input: UserProfileUpdateInput) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -138,6 +141,19 @@ export function FirebaseAuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const saveUserProfileChanges = useCallback(async (input: UserProfileUpdateInput) => {
+    setError(undefined);
+
+    try {
+      const userProfile = await updateUserProfile(input);
+      setProfile(userProfile);
+    } catch (authError) {
+      const message = getAuthErrorMessage(authError, "Unable to update profile.");
+      setError(message);
+      throw new Error(message);
+    }
+  }, []);
+
   const signInWithGoogle = useCallback(async (staySignedIn = true) => {
     setIsLoading(true);
     setError(undefined);
@@ -205,6 +221,7 @@ export function FirebaseAuthProvider({ children }: { children: ReactNode }) {
       signOut,
       signUp,
       updateDisplayName: saveDisplayName,
+      updateUserProfile: saveUserProfileChanges,
     }),
     [
       error,
@@ -212,6 +229,7 @@ export function FirebaseAuthProvider({ children }: { children: ReactNode }) {
       profile,
       resetPassword,
       saveDisplayName,
+      saveUserProfileChanges,
       signIn,
       signInWithGoogle,
       signOut,

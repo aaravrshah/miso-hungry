@@ -461,15 +461,6 @@ export function AddRecipeForm({
                 value={formRecipe.description}
               />
             </label>
-            <TextField
-              label="Cuisine"
-              onChange={(value) => updateField("cuisine", value)}
-              placeholder="Indian, Japanese, Italian..."
-              value={formRecipe.cuisine ?? ""}
-            />
-            <p className="-mt-2 text-xs font-medium leading-5 text-stone-500">
-              Categories are flexible albums; cuisine is the dish&apos;s style or origin.
-            </p>
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
               <TextField
                 label="Prep time"
@@ -684,9 +675,7 @@ function CategoryPicker({
     <div className="relative space-y-2">
       <div className="flex items-center justify-between gap-3">
         <span className="text-sm font-bold text-stone-700">Categories</span>
-        <span className="text-xs font-semibold text-stone-500">
-          Albums, not cuisine
-        </span>
+        <span className="text-xs font-semibold text-stone-500">Albums</span>
       </div>
       <div className="rounded-lg border border-stone-200 bg-white p-3 shadow-sm">
         {selectedCategories.length > 0 ? (

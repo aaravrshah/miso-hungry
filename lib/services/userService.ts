@@ -14,10 +14,17 @@ import {
   updateProfile,
   type User,
 } from "firebase/auth";
-import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import { deleteField, doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { getFirebaseServices } from "@/lib/firebase/client";
 import { firebaseCollections } from "@/lib/firebase/collections";
 import type { SupportedDisplayName, UserProfile } from "@/lib/firebase/schema";
+
+export type UserProfileUpdateInput = {
+  displayName: string;
+  photoFile?: File;
+  username?: string;
+};
 
 export function subscribeToAuthState(callback: (user: User | null) => void) {
   const { auth } = getFirebaseServices();
@@ -72,6 +79,53 @@ function withGooglePopupTimeout<T>(promise: Promise<T>) {
         reject(error);
       });
   });
+}
+
+export function normalizeUsername(username: string) {
+  return username
+    .trim()
+    .replace(/^@+/, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9._]/g, "")
+    .replace(/[._]{2,}/g, ".")
+    .replace(/^[._]+|[._]+$/g, "");
+}
+
+function validateUsername(username?: string) {
+  if (!username) {
+    return undefined;
+  }
+
+  if (username.length < 3) {
+    throw new Error("Username must be at least 3 characters.");
+  }
+
+  if (username.length > 24) {
+    throw new Error("Username must be 24 characters or fewer.");
+  }
+
+  return username;
+}
+
+function safeFileName(fileName: string) {
+  return fileName
+    .toLowerCase()
+    .replace(/[^a-z0-9.]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+}
+
+async function uploadProfilePhoto({ file, userId }: { file: File; userId: string }) {
+  const { storage } = getFirebaseServices();
+  const imagePath = `profile-images/${userId}/${Date.now()}-${safeFileName(file.name) || "photo"}`;
+  const imageRef = ref(storage, imagePath);
+
+  await uploadBytes(imageRef, file, { contentType: file.type || "image/jpeg" });
+
+  return {
+    photoPath: imagePath,
+    photoURL: await getDownloadURL(imageRef),
+  };
 }
 
 export function getAuthErrorMessage(error: unknown, fallback = "Authentication failed.") {
@@ -148,7 +202,11 @@ export async function saveUserProfile(user: User, displayName: SupportedDisplayN
   return profile;
 }
 
-export async function updateDisplayName(displayName: string) {
+export async function updateUserProfile({
+  displayName,
+  photoFile,
+  username,
+}: UserProfileUpdateInput) {
   const { auth, db } = getFirebaseServices();
   const user = auth.currentUser;
 
@@ -162,19 +220,41 @@ export async function updateDisplayName(displayName: string) {
     throw new Error("Display name is required.");
   }
 
-  await updateProfile(user, { displayName: nextDisplayName });
+  const normalizedUsername =
+    username === undefined ? undefined : validateUsername(normalizeUsername(username));
+  const usernameUpdate =
+    username === undefined
+      ? {}
+      : normalizedUsername
+        ? { username: normalizedUsername }
+        : { username: deleteField() };
+  const uploadedPhoto = photoFile
+    ? await uploadProfilePhoto({ file: photoFile, userId: user.uid })
+    : undefined;
+
+  await updateProfile(user, {
+    displayName: nextDisplayName,
+    photoURL: uploadedPhoto?.photoURL ?? user.photoURL,
+  });
+
   await setDoc(
     doc(db, firebaseCollections.users, user.uid),
     {
       displayName: nextDisplayName,
       email: user.email,
-      photoURL: user.photoURL,
+      ...usernameUpdate,
+      photoURL: uploadedPhoto?.photoURL ?? user.photoURL,
+      ...(uploadedPhoto?.photoPath ? { photoPath: uploadedPhoto.photoPath } : {}),
       updatedAt: serverTimestamp(),
     },
     { merge: true },
   );
 
   return getOrCreateUserProfile(user);
+}
+
+export async function updateDisplayName(displayName: string) {
+  return updateUserProfile({ displayName });
 }
 
 async function getOrCreateUserProfile(user: User) {

@@ -7,7 +7,9 @@ export type UserProfile = {
   id: string;
   displayName: SupportedDisplayName | string;
   email: string | null;
+  username?: string;
   photoURL?: string | null;
+  photoPath?: string;
   bio?: string;
   favoriteCuisines?: string[];
   createdAt?: unknown;
@@ -18,6 +20,7 @@ export type UserSummary = {
   id: string;
   displayName: string;
   email?: string | null;
+  username?: string;
   photoURL?: string | null;
 };
 

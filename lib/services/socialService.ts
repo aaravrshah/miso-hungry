@@ -27,6 +27,7 @@ export function userSummaryFromProfile(profile: UserProfile): UserSummary {
     id: profile.id,
     displayName: String(profile.displayName || profile.email || "Cook"),
     email: profile.email,
+    username: profile.username,
     photoURL: profile.photoURL,
   };
 }

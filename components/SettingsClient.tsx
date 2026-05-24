@@ -1,34 +1,68 @@
 "use client";
 
-import { KeyRound, Mail, Save, UserCircle } from "lucide-react";
+import { AtSign, ImagePlus, KeyRound, Mail, Save } from "lucide-react";
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import { UserAvatar } from "@/components/UserAvatar";
 
 export function SettingsClient() {
-  const { error, profile, sendPasswordReset, updateDisplayName } = useAuth();
-  const [displayName, setDisplayName] = useState(String(profile?.displayName ?? ""));
+  const { error, profile, sendPasswordReset, updateUserProfile } = useAuth();
+  const [displayNameDraft, setDisplayNameDraft] = useState<string | undefined>();
+  const [usernameDraft, setUsernameDraft] = useState<string | undefined>();
+  const [photoFile, setPhotoFile] = useState<File | undefined>();
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | undefined>();
   const [formError, setFormError] = useState<string | undefined>();
   const [message, setMessage] = useState<string | undefined>();
-  const [isSavingName, setIsSavingName] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isSendingReset, setIsSendingReset] = useState(false);
   const profileHref = profile ? `/profiles/${profile.id}` : "/settings";
+  const displayName = displayNameDraft ?? String(profile?.displayName ?? "");
+  const username = usernameDraft ?? profile?.username ?? "";
+  const avatarUrl = photoPreviewUrl ?? profile?.photoURL;
 
-  async function saveName(event: FormEvent<HTMLFormElement>) {
+  useEffect(
+    () => () => {
+      if (photoPreviewUrl) {
+        URL.revokeObjectURL(photoPreviewUrl);
+      }
+    },
+    [photoPreviewUrl],
+  );
+
+  function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+
+    setPhotoFile(file);
+    setMessage(undefined);
+
+    if (!file) {
+      setPhotoPreviewUrl(undefined);
+      return;
+    }
+
+    setPhotoPreviewUrl(URL.createObjectURL(file));
+  }
+
+  async function saveProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFormError(undefined);
     setMessage(undefined);
-    setIsSavingName(true);
+    setIsSavingProfile(true);
 
     try {
-      await updateDisplayName(displayName);
+      await updateUserProfile({ displayName, photoFile, username });
+      setDisplayNameDraft(undefined);
+      setUsernameDraft(undefined);
+      setPhotoFile(undefined);
+      setPhotoPreviewUrl(undefined);
       setMessage("Profile updated.");
     } catch (nameError) {
       setFormError(
         nameError instanceof Error ? nameError.message : "Unable to update profile.",
       );
     } finally {
-      setIsSavingName(false);
+      setIsSavingProfile(false);
     }
   }
 
@@ -67,16 +101,19 @@ export function SettingsClient() {
 
       <section className="rounded-lg border border-stone-200 bg-white/75 p-4 shadow-sm sm:p-5">
         <div className="flex items-start gap-3">
-          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-[#fff4e4] text-[var(--tomato)] ring-1 ring-stone-200">
-            <UserCircle aria-hidden="true" className="h-6 w-6" />
-          </span>
+          <UserAvatar
+            displayName={String(profile?.displayName ?? "Cook")}
+            photoURL={profile?.photoURL}
+            size="lg"
+          />
           <div className="min-w-0">
             <h2 className="font-serif text-2xl leading-tight text-stone-950">
               {profile?.displayName ?? "Your profile"}
             </h2>
-            <p className="mt-1 truncate text-sm font-semibold text-stone-500">
-              {profile?.email ?? "No email"}
-            </p>
+            <div className="mt-1 space-y-1 text-sm font-semibold text-stone-500">
+              {profile?.username ? <p>@{profile.username}</p> : null}
+              <p className="truncate">{profile?.email ?? "No email"}</p>
+            </div>
             <Link
               className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg border border-stone-200 bg-white px-3 text-sm font-bold text-[var(--tomato)] shadow-sm"
               href={profileHref}
@@ -89,24 +126,60 @@ export function SettingsClient() {
 
       <form
         className="rounded-lg border border-stone-200 bg-white/75 p-4 shadow-sm sm:p-5"
-        onSubmit={saveName}
+        onSubmit={saveProfile}
       >
-        <label className="block space-y-2">
-          <span className="text-sm font-bold text-stone-700">Display name</span>
-          <input
-            className="h-12 w-full rounded-lg border border-stone-200 bg-white px-4 text-stone-950 outline-none transition placeholder:text-stone-400 focus:border-[var(--tomato)] focus:ring-4 focus:ring-red-100"
-            onChange={(event) => setDisplayName(event.target.value)}
-            required
-            value={displayName}
-          />
-        </label>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+          <UserAvatar displayName={displayName || "Cook"} photoURL={avatarUrl} size="xl" />
+          <div className="min-w-0 flex-1 space-y-4">
+            <label className="block space-y-2">
+              <span className="text-sm font-bold text-stone-700">Profile photo</span>
+              <span className="flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-stone-300 bg-white px-4 text-sm font-bold text-stone-700 transition hover:bg-stone-50">
+                <ImagePlus aria-hidden="true" className="h-4 w-4" />
+                {photoFile ? photoFile.name : "Choose photo"}
+                <input
+                  accept="image/*"
+                  className="sr-only"
+                  onChange={handlePhotoChange}
+                  type="file"
+                />
+              </span>
+            </label>
+
+            <label className="block space-y-2">
+              <span className="text-sm font-bold text-stone-700">Display name</span>
+              <input
+                className="h-12 w-full rounded-lg border border-stone-200 bg-white px-4 text-stone-950 outline-none transition placeholder:text-stone-400 focus:border-[var(--tomato)] focus:ring-4 focus:ring-red-100"
+                onChange={(event) => setDisplayNameDraft(event.target.value)}
+                required
+                value={displayName}
+              />
+            </label>
+
+            <label className="block space-y-2">
+              <span className="text-sm font-bold text-stone-700">Username</span>
+              <span className="flex h-12 items-center rounded-lg border border-stone-200 bg-white px-4 focus-within:border-[var(--tomato)] focus-within:ring-4 focus-within:ring-red-100">
+                <AtSign aria-hidden="true" className="h-4 w-4 text-stone-400" />
+                <input
+                  className="min-w-0 flex-1 bg-transparent pl-2 text-stone-950 outline-none placeholder:text-stone-400"
+                  onChange={(event) => setUsernameDraft(event.target.value)}
+                  placeholder="aarav"
+                  value={username}
+                />
+              </span>
+              <span className="text-xs font-medium text-stone-500">
+                Lowercase letters, numbers, dots, and underscores work best.
+              </span>
+            </label>
+          </div>
+        </div>
+
         <button
           className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-[var(--tomato)] px-4 text-sm font-bold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
-          disabled={isSavingName}
+          disabled={isSavingProfile}
           type="submit"
         >
           <Save aria-hidden="true" className="h-4 w-4" />
-          {isSavingName ? "Saving..." : "Save name"}
+          {isSavingProfile ? "Saving..." : "Save profile"}
         </button>
       </form>
 

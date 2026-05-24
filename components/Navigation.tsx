@@ -11,7 +11,6 @@ import {
   PlusCircle,
   Settings,
   ShoppingBasket,
-  UserCircle,
   Users,
   X,
 } from "lucide-react";
@@ -19,6 +18,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import { UserAvatar } from "@/components/UserAvatar";
 
 const desktopNavItems = [
   { href: "/", label: "Home", icon: Home },
@@ -35,12 +35,12 @@ const mobilePrimaryNavItems = [
   { href: "/", label: "Home", icon: Home },
   { href: "/recipes", label: "Recipes", icon: BookOpen },
   { href: "/add-recipe", label: "Add", icon: PlusCircle },
-  { href: "/grocery-list", label: "Grocery", icon: ShoppingBasket },
+  { href: "/friends", label: "Friends", icon: Users },
 ];
 
 const mobileMoreNavItems = [
   { href: "/drinks", label: "Drinks", icon: GlassWater },
-  { href: "/friends", label: "Friends", icon: Users },
+  { href: "/grocery-list", label: "Grocery", icon: ShoppingBasket },
   { href: "/pantry", label: "Pantry", icon: PackageSearch },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
@@ -109,22 +109,38 @@ export function Navigation() {
           })}
         </nav>
 
-        <div className="mt-auto rounded-lg border border-stone-200 bg-white/65 p-4">
-          <p className="font-serif text-lg text-stone-950">
-            {profile?.displayName ?? "This week"}
-          </p>
-          <p className="mt-2 text-sm leading-6 text-stone-600">
-            Signed in for recipe edits, ratings, and cook logs.
-          </p>
-          <Link
-            className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-stone-700"
-            href={profileHref}
-          >
-            <UserCircle aria-hidden="true" className="h-4 w-4" />
-            View profile
-          </Link>
+        <div className="mt-auto rounded-lg border border-stone-200 bg-white/70 p-4 shadow-sm">
+          <div className="flex min-w-0 items-center gap-3">
+            <UserAvatar
+              displayName={String(profile?.displayName ?? "Cook")}
+              photoURL={profile?.photoURL}
+              size="sm"
+            />
+            <div className="min-w-0">
+              <p className="truncate font-serif text-lg leading-tight text-stone-950">
+                {profile?.displayName ?? "Cook"}
+              </p>
+              <p className="truncate text-xs font-semibold text-stone-500">
+                {profile?.username ? `@${profile.username}` : (profile?.email ?? "Account")}
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <Link
+              className="inline-flex min-h-10 items-center justify-center rounded-lg border border-stone-200 bg-white px-3 text-sm font-bold text-stone-700 shadow-sm"
+              href={profileHref}
+            >
+              Profile
+            </Link>
+            <Link
+              className="inline-flex min-h-10 items-center justify-center rounded-lg border border-stone-200 bg-white px-3 text-sm font-bold text-stone-700 shadow-sm"
+              href="/settings"
+            >
+              Settings
+            </Link>
+          </div>
           <button
-            className="mt-3 inline-flex items-center gap-2 text-sm font-bold text-[var(--tomato)]"
+            className="mt-2 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-[#fff1ea] px-3 text-sm font-bold text-[var(--tomato)]"
             onClick={handleSignOut}
             type="button"
           >
@@ -136,16 +152,39 @@ export function Navigation() {
 
       <nav
         aria-label="Primary navigation"
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-stone-200 bg-[#fbf5eb]/95 px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 shadow-[0_-10px_30px_rgba(44,36,29,0.08)] backdrop-blur sm:bottom-4 sm:left-1/2 sm:right-auto sm:w-[min(44rem,calc(100%-2rem))] sm:-translate-x-1/2 sm:rounded-2xl sm:border sm:pb-2 lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-stone-200 bg-[#fbf5eb]/95 px-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 shadow-[0_-10px_30px_rgba(44,36,29,0.08)] backdrop-blur sm:bottom-4 sm:left-1/2 sm:right-auto sm:w-[min(28rem,calc(100%-2rem))] sm:-translate-x-1/2 sm:rounded-2xl sm:border sm:pb-2 lg:hidden"
       >
-        <div className="flex gap-1 overflow-x-auto pb-1">
+        <div className="mx-auto grid max-w-md grid-cols-5 items-end gap-1">
           {mobilePrimaryNavItems.map((item) => {
             const active = isActivePath(pathname, item.href);
             const Icon = item.icon;
+            const isAdd = item.href === "/add-recipe";
+
+            if (isAdd) {
+              return (
+                <Link
+                  className="group relative -mt-6 flex min-h-[4.5rem] flex-col items-center justify-start gap-1 text-[0.68rem] font-bold text-[var(--tomato)]"
+                  href={item.href}
+                  key={item.href}
+                  aria-current={active ? "page" : undefined}
+                >
+                  <span
+                    className={`grid h-14 w-14 place-items-center rounded-full border-4 border-[#fbf5eb] shadow-lg transition ${
+                      active
+                        ? "bg-[var(--tomato)] text-white ring-2 ring-[var(--tomato)]/25"
+                        : "bg-[var(--tomato)] text-white group-hover:bg-[#a94e3a]"
+                    }`}
+                  >
+                    <Icon aria-hidden="true" className="h-7 w-7" />
+                  </span>
+                  <span className="leading-none">{item.label}</span>
+                </Link>
+              );
+            }
 
             return (
               <Link
-                className={`flex min-h-14 w-16 shrink-0 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[0.68rem] font-bold transition ${
+                className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[0.68rem] font-bold transition ${
                   active
                     ? "bg-white text-[var(--tomato)] shadow-sm ring-1 ring-stone-200"
                     : "text-stone-500"
@@ -160,7 +199,7 @@ export function Navigation() {
             );
           })}
           <button
-            className={`flex min-h-14 w-16 shrink-0 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[0.68rem] font-bold transition ${
+            className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[0.68rem] font-bold transition ${
               isMoreActive || isMoreOpen
                 ? "bg-white text-[var(--tomato)] shadow-sm ring-1 ring-stone-200"
                 : "text-stone-500"
@@ -188,7 +227,7 @@ export function Navigation() {
               <div className="min-w-0">
                 <p className="font-serif text-2xl leading-tight text-stone-950">More</p>
                 <p className="mt-1 truncate text-sm font-semibold text-stone-500">
-                  {profile?.displayName ?? profile?.email ?? "Miso Hungry"}
+                  {profile?.username ? `@${profile.username}` : "Miso Hungry"}
                 </p>
               </div>
               <button
@@ -201,14 +240,34 @@ export function Navigation() {
               </button>
             </div>
 
+            <div className="mt-4 rounded-lg border border-stone-200 bg-white p-3 shadow-sm">
+              <div className="flex min-w-0 items-center gap-3">
+                <UserAvatar
+                  displayName={String(profile?.displayName ?? "Cook")}
+                  photoURL={profile?.photoURL}
+                  size="md"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-serif text-xl leading-tight text-stone-950">
+                    {profile?.displayName ?? "Cook"}
+                  </p>
+                  <p className="truncate text-xs font-semibold text-stone-500">
+                    {profile?.username
+                      ? `@${profile.username}`
+                      : (profile?.email ?? "Account")}
+                  </p>
+                </div>
+                <Link
+                  className="inline-flex min-h-10 items-center justify-center rounded-lg bg-[var(--tomato)] px-3 text-sm font-bold text-white"
+                  href={profileHref}
+                  onClick={() => setIsMoreOpen(false)}
+                >
+                  Profile
+                </Link>
+              </div>
+            </div>
+
             <div className="mt-4 grid gap-2">
-              <MoreLink
-                active={pathname.startsWith("/profiles/")}
-                href={profileHref}
-                icon={UserCircle}
-                label="My profile"
-                onClick={() => setIsMoreOpen(false)}
-              />
               {mobileMoreNavItems.map((item) => (
                 <MoreLink
                   active={isActivePath(pathname, item.href)}

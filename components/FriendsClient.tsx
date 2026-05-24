@@ -7,6 +7,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { RecipeGrid } from "@/components/RecipeGrid";
 import { useRecipes } from "@/components/RecipeStore";
 import { useSocial } from "@/components/SocialProvider";
+import { UserAvatar } from "@/components/UserAvatar";
 import type { UserProfile, UserSummary } from "@/lib/firebase/schema";
 
 function profileMatches(profile: UserProfile, query: string) {
@@ -16,7 +17,7 @@ function profileMatches(profile: UserProfile, query: string) {
     return true;
   }
 
-  return [profile.displayName, profile.email]
+  return [profile.displayName, profile.username, profile.email]
     .filter(Boolean)
     .join(" ")
     .toLowerCase()
@@ -288,22 +289,14 @@ function UserLine({ user }: { user: UserSummary | UserProfile }) {
 
   return (
     <div className="flex min-w-0 items-center gap-3">
-      {user.photoURL ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          alt=""
-          className="h-12 w-12 rounded-full object-cover ring-1 ring-stone-200"
-          src={user.photoURL}
-        />
-      ) : (
-        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-stone-100 font-serif text-xl text-stone-700 ring-1 ring-stone-200">
-          {displayName.slice(0, 1).toUpperCase()}
-        </span>
-      )}
+      <UserAvatar displayName={displayName} photoURL={user.photoURL} size="md" />
       <div className="min-w-0">
         <p className="truncate font-serif text-xl leading-tight text-stone-950">
           {displayName}
         </p>
+        {user.username ? (
+          <p className="truncate text-sm font-medium text-stone-500">@{user.username}</p>
+        ) : null}
         {user.email ? (
           <p className="truncate text-sm font-medium text-stone-500">{user.email}</p>
         ) : null}

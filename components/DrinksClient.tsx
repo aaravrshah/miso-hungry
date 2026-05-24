@@ -123,6 +123,7 @@ export function DrinksClient() {
             id: profile.id,
             displayName: String(profile.displayName || profile.email || "Me"),
             email: profile.email,
+            username: profile.username,
             photoURL: profile.photoURL,
           }
         : undefined,
