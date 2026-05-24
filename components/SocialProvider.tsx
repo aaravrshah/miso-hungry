@@ -21,7 +21,7 @@ import {
   sendFriendRequest as sendFriendRequestService,
 } from "@/lib/services/socialService";
 
-type SocialContextValue = {
+export type SocialContextValue = {
   allUsers: UserProfile[];
   error?: string;
   friends: UserSummary[];
@@ -36,7 +36,7 @@ type SocialContextValue = {
   sendFriendRequest: (userId: string) => Promise<void>;
 };
 
-const SocialContext = createContext<SocialContextValue | undefined>(undefined);
+export const SocialContext = createContext<SocialContextValue | undefined>(undefined);
 
 export function SocialProvider({ children }: { children: ReactNode }) {
   const { profile } = useAuth();

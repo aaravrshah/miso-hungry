@@ -39,7 +39,6 @@ import {
   canDeleteRecipe,
   canEditRecipe,
   formatRecipeDate,
-  formatRating,
   formatTimerMinutes,
   getRecipeCategoryNames,
   getRecipeVisibility,
@@ -65,7 +64,6 @@ export function RecipeDetailClient({ recipeId }: RecipeDetailClientProps) {
     collaborationInvites,
     error: storeError,
     isLoading,
-    markRecipeMade,
     recipes,
     updateRecipe,
     visibleRecipes,
@@ -75,7 +73,6 @@ export function RecipeDetailClient({ recipeId }: RecipeDetailClientProps) {
   const [actionError, setActionError] = useState<string | undefined>();
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDuplicating, setIsDuplicating] = useState(false);
-  const [isLoggingCook, setIsLoggingCook] = useState(false);
   const [isSavingVisibility, setIsSavingVisibility] = useState(false);
   const [isCookingMode, setIsCookingMode] = useState(false);
   const [cookingProgress, setCookingProgress] = useState(() => createCookingProgress());
@@ -221,30 +218,7 @@ export function RecipeDetailClient({ recipeId }: RecipeDetailClientProps) {
             <Utensils aria-hidden="true" className="h-4 w-4" />
             Cook This
           </button>
-          {isInMyCookbook ? (
-            <button
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-4 text-sm font-bold text-stone-700 shadow-sm transition hover:bg-stone-50"
-              disabled={isLoggingCook}
-              onClick={async () => {
-                setIsLoggingCook(true);
-                setActionError(undefined);
-
-                try {
-                  await markRecipeMade(recipe.id);
-                } catch (markError) {
-                  setActionError(
-                    markError instanceof Error ? markError.message : "Unable to log this cook.",
-                  );
-                } finally {
-                  setIsLoggingCook(false);
-                }
-              }}
-              type="button"
-            >
-              <Utensils aria-hidden="true" className="h-4 w-4" />
-              {isLoggingCook ? "Logging..." : "Mark made"}
-            </button>
-          ) : (
+          {!isInMyCookbook ? (
             <button
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-4 text-sm font-bold text-stone-700 shadow-sm transition hover:bg-stone-50"
               disabled={isDuplicating}
@@ -273,7 +247,7 @@ export function RecipeDetailClient({ recipeId }: RecipeDetailClientProps) {
               <Plus aria-hidden="true" className="h-4 w-4" />
               {isDuplicating ? "Duplicating..." : "Duplicate"}
             </button>
-          )}
+          ) : null}
           {canEditCurrentRecipe ? (
             <button
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-4 text-sm font-bold text-stone-700 shadow-sm transition hover:bg-stone-50"
@@ -529,8 +503,6 @@ function OverviewSection({
             averageRating(recipe) ? `${averageRating(recipe)?.toFixed(1)}/5` : "Not rated"
           }
         />
-        <InfoTile label="Aarav rating" value={formatRating(recipe.aaravRating)} />
-        <InfoTile label="Sophie rating" value={formatRating(recipe.sophieRating)} />
         <InfoTile label="Date added" value={formatRecipeDate(recipe.dateAdded)} />
         <div className="rounded-lg bg-stone-50 p-4 ring-1 ring-stone-200">
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-stone-400">
@@ -826,10 +798,10 @@ function NotesSection({ recipe }: { recipe: Recipe }) {
   );
 }
 
-function emptyCookLogInput(): CookLogInput {
+function emptyCookLogInput(displayName?: string): CookLogInput {
   return {
     dateMade: todayString(),
-    cookedBy: "Both",
+    cookedBy: displayName?.trim() || "Me",
     occasion: "",
     rating: undefined,
     aaravRating: undefined,
@@ -870,12 +842,15 @@ function CookHistorySection({ recipe }: { recipe: Recipe }) {
   const { profile } = useAuth();
   const { friends } = useSocial();
   const cookLogs = cookLogsByRecipe[recipe.id] ?? [];
+  const currentCookName = profile?.displayName ? String(profile.displayName) : "Me";
   const cookedByOptions: CookedBy[] = [
+    currentCookName,
     "Both",
-    profile?.displayName ? String(profile.displayName) : "",
     ...friends.map((friend) => friend.displayName),
   ].filter((value, index, values): value is CookedBy => Boolean(value) && values.indexOf(value) === index);
-  const [formInput, setFormInput] = useState<CookLogInput>(emptyCookLogInput);
+  const [formInput, setFormInput] = useState<CookLogInput>(() =>
+    emptyCookLogInput(currentCookName),
+  );
   const [editingLogId, setEditingLogId] = useState<string | undefined>();
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
   const [isSavingLog, setIsSavingLog] = useState(false);
@@ -924,7 +899,7 @@ function CookHistorySection({ recipe }: { recipe: Recipe }) {
 
   function resetForm() {
     setEditingLogId(undefined);
-    setFormInput(emptyCookLogInput());
+    setFormInput(emptyCookLogInput(currentCookName));
     setLocalError(undefined);
   }
 
@@ -1213,10 +1188,12 @@ function CookHistorySection({ recipe }: { recipe: Recipe }) {
                     ? `${cookLog.ratedByDisplayName} rating`
                     : "Rating"
                 }
-                value={formatRating(cookLog.rating)}
+                value={
+                  typeof cookLog.rating === "number"
+                    ? `${cookLog.rating.toFixed(1)}/5`
+                    : "Not rated"
+                }
               />
-              <InfoTile label="Aarav rating" value={formatRating(cookLog.aaravRating)} />
-              <InfoTile label="Sophie rating" value={formatRating(cookLog.sophieRating)} />
             </div>
 
             {cookLog.taggedUsers?.length ? (

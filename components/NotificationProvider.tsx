@@ -17,7 +17,7 @@ import {
   markNotificationRead as markNotificationReadService,
 } from "@/lib/services/notificationService";
 
-type NotificationContextValue = {
+export type NotificationContextValue = {
   error?: string;
   isLoading: boolean;
   markAllRead: () => Promise<void>;
@@ -27,7 +27,7 @@ type NotificationContextValue = {
   unreadCount: number;
 };
 
-const NotificationContext = createContext<NotificationContextValue | undefined>(undefined);
+export const NotificationContext = createContext<NotificationContextValue | undefined>(undefined);
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const { profile } = useAuth();

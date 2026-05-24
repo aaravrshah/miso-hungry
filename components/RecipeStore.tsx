@@ -44,11 +44,11 @@ import { todayString } from "@/lib/services/helpers";
 import { useAuth } from "@/components/AuthProvider";
 import { useSocial } from "@/components/SocialProvider";
 
-type RecipeCreateInput = Omit<Recipe, "id"> & {
+export type RecipeCreateInput = Omit<Recipe, "id"> & {
   id?: string;
 };
 
-type RecipeStoreValue = {
+export type RecipeStoreValue = {
   categories: Category[];
   collaborationInvites: {
     incoming: CollaborationInvite[];
@@ -102,7 +102,7 @@ type RecipeStoreValue = {
   ) => Promise<Recipe | undefined>;
 };
 
-const RecipeStoreContext = createContext<RecipeStoreValue | undefined>(undefined);
+export const RecipeStoreContext = createContext<RecipeStoreValue | undefined>(undefined);
 
 function displayNameToCookedBy(displayName?: string): CookedBy {
   return displayName?.trim() || "Both";

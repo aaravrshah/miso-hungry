@@ -1,7 +1,11 @@
+"use client";
+
 import { ChefHat } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { AuthGate } from "@/components/AuthGate";
 import { FirebaseAuthProvider } from "@/components/AuthProvider";
+import { DemoAppLayout } from "@/components/DemoProviders";
 import { Navigation } from "@/components/Navigation";
 import { NotificationBell } from "@/components/NotificationBell";
 import { NotificationProvider } from "@/components/NotificationProvider";
@@ -14,6 +18,12 @@ type AppLayoutProps = {
 };
 
 export function AppLayout({ children }: AppLayoutProps) {
+  const pathname = usePathname();
+
+  if (pathname.startsWith("/demo")) {
+    return <DemoAppLayout>{children}</DemoAppLayout>;
+  }
+
   return (
     <FirebaseAuthProvider>
       <AuthGate>

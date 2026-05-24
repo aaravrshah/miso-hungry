@@ -7,7 +7,6 @@ import { StarRating } from "@/components/StarRating";
 import {
   averageRating,
   formatRecipeDate,
-  formatRating,
   getRecipeCategoryNames,
   getRecipeVisibility,
   type Recipe,
@@ -89,20 +88,6 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
               </span>
             ) : null}
           </p>
-        ) : null}
-        {typeof recipe.aaravRating === "number" || typeof recipe.sophieRating === "number" ? (
-          <div className="hidden flex-wrap gap-2 text-xs font-bold text-stone-600 sm:flex">
-            {typeof recipe.aaravRating === "number" ? (
-              <span className="rounded-full bg-stone-100 px-2.5 py-1">
-                Aarav {formatRating(recipe.aaravRating)}
-              </span>
-            ) : null}
-            {typeof recipe.sophieRating === "number" ? (
-              <span className="rounded-full bg-stone-100 px-2.5 py-1">
-                Sophie {formatRating(recipe.sophieRating)}
-              </span>
-            ) : null}
-          </div>
         ) : null}
         <div className="hidden flex-wrap gap-2 sm:flex">
           {(recipe.tags ?? []).map((tag) => (

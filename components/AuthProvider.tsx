@@ -26,7 +26,7 @@ import {
   type UserProfileUpdateInput,
 } from "@/lib/services/userService";
 
-type AuthContextValue = {
+export type AuthContextValue = {
   error?: string;
   isConfigured: boolean;
   isLoading: boolean;
@@ -50,7 +50,7 @@ type AuthContextValue = {
   updateUserProfile: (input: UserProfileUpdateInput) => Promise<void>;
 };
 
-const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function FirebaseAuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | undefined>();
