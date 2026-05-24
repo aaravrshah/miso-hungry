@@ -221,6 +221,7 @@ export function AddRecipeForm({
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [tagsText, setTagsText] = useState(initialRecipe.tags?.join(", ") ?? "");
+  const [uploadedImagePreviewUrl, setUploadedImagePreviewUrl] = useState<string | undefined>();
   const [warning, setWarning] = useState<string | undefined>();
   const isEditing = mode === "edit";
   const selectedCategoryIds = formRecipe.categoryIds?.length
@@ -230,12 +231,32 @@ export function AddRecipeForm({
       : [];
   const parsedDirections = parseDirections(directionsText);
   const detectedTimers = parsedDirections.filter((direction) => direction.timerMinutes);
+  const coverPreviewUrl = uploadedImagePreviewUrl ?? formRecipe.coverImageUrl;
   const currentRating =
     profile?.displayName === "Sophie"
       ? formRecipe.sophieRating
       : profile?.displayName === "Aarav"
         ? formRecipe.aaravRating
         : formRecipe.averageUserRating;
+
+  useEffect(() => {
+    return () => {
+      if (uploadedImagePreviewUrl) {
+        URL.revokeObjectURL(uploadedImagePreviewUrl);
+      }
+    };
+  }, [uploadedImagePreviewUrl]);
+
+  function handleCoverImageFileChange(file?: File) {
+    setCoverImageFile(file);
+
+    if (!file) {
+      setUploadedImagePreviewUrl(undefined);
+      return;
+    }
+
+    setUploadedImagePreviewUrl(URL.createObjectURL(file));
+  }
 
   function updateField<Key extends keyof Recipe>(key: Key, value: Recipe[Key]) {
     setFormRecipe((currentRecipe) => ({
@@ -364,11 +385,10 @@ export function AddRecipeForm({
         </div>
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[1fr_22rem]">
-        <div className="space-y-5 rounded-lg border border-stone-200 bg-white/76 p-4 shadow-sm sm:p-6">
-          <FormSectionTitle title="Basics" />
-
-          <div className="grid gap-4 md:grid-cols-2">
+      <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_24rem]">
+        <div className="space-y-4">
+          <div className="space-y-4 rounded-lg border border-stone-200 bg-white/76 p-4 shadow-sm sm:p-5">
+            <FormSectionTitle eyebrow="Start here" title="Name and organize" />
             <TextField
               label="Recipe title"
               onChange={(value) => updateField("title", value)}
@@ -376,162 +396,133 @@ export function AddRecipeForm({
               required
               value={formRecipe.title}
             />
-            <div className="space-y-2">
-              <span className="text-sm font-bold text-stone-700">Categories</span>
-              <div className="flex min-h-12 flex-wrap gap-2 rounded-lg border border-stone-200 bg-white px-3 py-2">
-                {categories.length === 0 ? (
-                  <p className="py-1 text-sm font-semibold text-stone-500">
-                    Create categories from the Recipes page.
-                  </p>
-                ) : null}
-                {categories.map((category) => {
-                  const selected = selectedCategoryIds.includes(category.id);
-
-                  return (
-                    <button
-                      className={`min-h-8 rounded-full px-3 text-sm font-bold ring-1 transition ${
-                        selected
-                          ? "bg-stone-950 text-white ring-stone-950"
-                          : "bg-stone-50 text-stone-600 ring-stone-200 hover:bg-stone-100"
-                      }`}
-                      key={category.id}
-                      onClick={() => toggleCategory(category.id)}
-                      type="button"
-                    >
-                      {category.name}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            <CategoryPicker
+              categories={categories}
+              onToggleCategory={toggleCategory}
+              selectedCategoryIds={selectedCategoryIds}
+            />
           </div>
 
-          <label className="space-y-2">
-            <span className="text-sm font-bold text-stone-700">Description</span>
-            <textarea
-              className={`${textareaClassName} min-h-24`}
-              onChange={(event) => updateField("description", event.target.value)}
-              placeholder="What makes this recipe worth saving?"
-              value={formRecipe.description}
-            />
-          </label>
-
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <TextField
-              label="Cuisine"
-              onChange={(value) => updateField("cuisine", value)}
-              placeholder="Korean"
-              value={formRecipe.cuisine ?? ""}
-            />
-            <TextField
-              label="Prep time"
-              onChange={(value) => updateField("prepTime", value)}
-              placeholder="15 min"
-              value={formRecipe.prepTime ?? ""}
-            />
-            <TextField
-              label="Cook time"
-              onChange={(value) => updateField("cookTime", value)}
-              placeholder="35 min"
-              value={formRecipe.cookTime ?? ""}
-            />
+          <div className="space-y-3 rounded-lg border border-stone-200 bg-white/76 p-4 shadow-sm sm:p-5">
+            <FormSectionTitle eyebrow="Core recipe" title="Ingredients" />
             <label className="space-y-2">
-              <span className="text-sm font-bold text-stone-700">Difficulty</span>
-              <select
-                className={inputClassName}
-                onChange={(event) =>
-                  updateField(
-                    "difficulty",
-                    event.target.value ? (event.target.value as Difficulty) : undefined,
-                  )
-                }
-                value={formRecipe.difficulty ?? ""}
-              >
-                <option value="">Not set</option>
-                {difficulties.map((difficulty) => (
-                  <option key={difficulty}>{difficulty}</option>
-                ))}
-              </select>
+              <span className="text-sm font-bold text-stone-700">One ingredient per line</span>
+              <textarea
+                className={`${textareaClassName} min-h-72 font-mono text-[0.95rem] leading-7`}
+                onChange={(event) => {
+                  setIngredientsText(event.target.value);
+                  setEmptyStructureAcknowledged(false);
+                  setWarning(undefined);
+                }}
+                placeholder={"2 cups all-purpose flour\n1 tsp baking powder\n1/2 cup sugar\nUnsalted butter, for the pan"}
+                value={ingredientsText}
+              />
             </label>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-[1fr_1fr_1fr]">
-            <NumberField
-              label="Servings"
-              min={1}
-              onChange={(value) => updateField("servings", value)}
-              value={formRecipe.servings}
+          <div className="space-y-3 rounded-lg border border-stone-200 bg-white/76 p-4 shadow-sm sm:p-5">
+            <FormSectionTitle eyebrow="Core recipe" title="Directions" />
+            <label className="space-y-2">
+              <span className="text-sm font-bold text-stone-700">
+                Paste or type the method
+              </span>
+              <textarea
+                className={`${textareaClassName} min-h-80 text-base leading-7`}
+                onChange={(event) => {
+                  setDirectionsText(event.target.value);
+                  setEmptyStructureAcknowledged(false);
+                  setWarning(undefined);
+                }}
+                placeholder={"1. Preheat oven to 350 degrees F.\n2. Mix the dry ingredients.\n3. Bake for 40 minutes, then cool for 15 minutes."}
+                value={directionsText}
+              />
+            </label>
+            {detectedTimers.length > 0 ? (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-900">
+                Detected timers:{" "}
+                {detectedTimers
+                  .map((direction) => formatTimerMinutes(direction.timerMinutes))
+                  .filter(Boolean)
+                  .join(", ")}
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        <aside className="space-y-4 xl:sticky xl:top-24 xl:self-start">
+          <div className="space-y-4 rounded-lg border border-stone-200 bg-white/72 p-4 shadow-sm">
+            <FormSectionTitle eyebrow="Optional details" title="Details" />
+            <label className="space-y-2">
+              <span className="text-sm font-bold text-stone-700">Description</span>
+              <textarea
+                className={`${textareaClassName} min-h-24`}
+                onChange={(event) => updateField("description", event.target.value)}
+                placeholder="What makes this recipe worth saving?"
+                value={formRecipe.description}
+              />
+            </label>
+            <TextField
+              label="Cuisine"
+              onChange={(value) => updateField("cuisine", value)}
+              placeholder="Indian, Japanese, Italian..."
+              value={formRecipe.cuisine ?? ""}
             />
+            <p className="-mt-2 text-xs font-medium leading-5 text-stone-500">
+              Categories are flexible albums; cuisine is the dish&apos;s style or origin.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+              <TextField
+                label="Prep time"
+                onChange={(value) => updateField("prepTime", value)}
+                placeholder="15 min"
+                value={formRecipe.prepTime ?? ""}
+              />
+              <TextField
+                label="Cook time"
+                onChange={(value) => updateField("cookTime", value)}
+                placeholder="35 min"
+                value={formRecipe.cookTime ?? ""}
+              />
+              <NumberField
+                label="Servings"
+                min={1}
+                onChange={(value) => updateField("servings", value)}
+                value={formRecipe.servings}
+              />
+              <label className="space-y-2">
+                <span className="text-sm font-bold text-stone-700">Difficulty</span>
+                <select
+                  className={inputClassName}
+                  onChange={(event) =>
+                    updateField(
+                      "difficulty",
+                      event.target.value ? (event.target.value as Difficulty) : undefined,
+                    )
+                  }
+                  value={formRecipe.difficulty ?? ""}
+                >
+                  <option value="">Not set</option>
+                  {difficulties.map((difficulty) => (
+                    <option key={difficulty}>{difficulty}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
             <RatingField
               label="Your rating"
               onChange={updateCurrentUserRating}
               value={currentRating}
             />
+            <TextField
+              label="Tags"
+              onChange={setTagsText}
+              placeholder="cozy, spicy, date-night"
+              value={tagsText}
+            />
           </div>
 
-          <TextField
-            label="Tags"
-            onChange={setTagsText}
-            placeholder="cozy, spicy, date-night"
-            value={tagsText}
-          />
-
-          <FormSectionTitle title="Ingredients" />
-          <label className="space-y-2">
-            <span className="text-sm font-bold text-stone-700">One ingredient per line</span>
-            <textarea
-              className={`${textareaClassName} min-h-72 font-mono text-[0.95rem] leading-7`}
-              onChange={(event) => {
-                setIngredientsText(event.target.value);
-                setEmptyStructureAcknowledged(false);
-                setWarning(undefined);
-              }}
-              placeholder={"2 cups all-purpose flour\n1 tsp baking powder\n1/2 cup sugar\nUnsalted butter, for the pan"}
-              value={ingredientsText}
-            />
-          </label>
-
-          <FormSectionTitle title="Directions" />
-          <label className="space-y-2">
-            <span className="text-sm font-bold text-stone-700">
-              Paste or type the method
-            </span>
-            <textarea
-              className={`${textareaClassName} min-h-96 text-base leading-7`}
-              onChange={(event) => {
-                setDirectionsText(event.target.value);
-                setEmptyStructureAcknowledged(false);
-                setWarning(undefined);
-              }}
-              placeholder={"1. Preheat oven to 350 degrees F.\n\n2. Mix the dry ingredients.\n\n3. Bake for 40 minutes, then cool for 15 minutes."}
-              value={directionsText}
-            />
-          </label>
-          {detectedTimers.length > 0 ? (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-900">
-              Detected timers:{" "}
-              {detectedTimers
-                .map((direction) => formatTimerMinutes(direction.timerMinutes))
-                .filter(Boolean)
-                .join(", ")}
-            </div>
-          ) : null}
-
-          <FormSectionTitle title="Notes" />
-          <label className="space-y-2">
-            <span className="text-sm font-bold text-stone-700">Private notes</span>
-            <textarea
-              className={`${textareaClassName} min-h-36`}
-              onChange={(event) => updateField("notes", event.target.value)}
-              placeholder="What made this one ours?"
-              value={formRecipe.notes ?? ""}
-            />
-          </label>
-        </div>
-
-        <aside className="space-y-4">
           <div className="rounded-lg border border-stone-200 bg-white/72 p-4 shadow-sm">
-            <FormSectionTitle title="Media" />
+            <FormSectionTitle eyebrow="Cover" title="Media" />
             <TextField
               label="Cover image URL"
               onChange={(value) => updateField("coverImageUrl", value)}
@@ -544,7 +535,7 @@ export function AddRecipeForm({
               <input
                 accept="image/*"
                 className="block w-full rounded-lg border border-stone-200 bg-white px-3 py-3 text-sm text-stone-700 file:mr-4 file:rounded-md file:border-0 file:bg-stone-100 file:px-3 file:py-2 file:text-sm file:font-bold file:text-stone-700"
-                onChange={(event) => setCoverImageFile(event.target.files?.[0])}
+                onChange={(event) => handleCoverImageFileChange(event.target.files?.[0])}
                 type="file"
               />
               {coverImageFile ? (
@@ -554,12 +545,12 @@ export function AddRecipeForm({
               ) : null}
             </label>
             <div className="mt-4 overflow-hidden rounded-lg border border-dashed border-stone-300 bg-stone-100">
-              {formRecipe.coverImageUrl ? (
+              {coverPreviewUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   alt=""
                   className="aspect-[4/3] w-full object-cover"
-                  src={formRecipe.coverImageUrl}
+                  src={coverPreviewUrl}
                 />
               ) : (
                 <div className="grid aspect-[4/3] place-items-center text-center text-stone-500">
@@ -573,7 +564,7 @@ export function AddRecipeForm({
           </div>
 
           <div className="space-y-4 rounded-lg border border-stone-200 bg-white/72 p-4 shadow-sm">
-            <FormSectionTitle title="History" />
+            <FormSectionTitle eyebrow="Reference" title="Source and notes" />
             <TextField
               label="Source URL"
               onChange={(value) => updateField("sourceUrl", value)}
@@ -581,24 +572,35 @@ export function AddRecipeForm({
               type="url"
               value={formRecipe.sourceUrl ?? ""}
             />
-            <TextField
-              label="Date added"
-              onChange={(value) => updateField("dateAdded", value)}
-              type="date"
-              value={formRecipe.dateAdded}
-            />
-            <TextField
-              label="Last made"
-              onChange={(value) => updateField("lastMadeDate", value || undefined)}
-              type="date"
-              value={formRecipe.lastMadeDate ?? ""}
-            />
-            <NumberField
-              label="Times made"
-              min={0}
-              onChange={(value) => updateField("timesMade", value ?? 0)}
-              value={formRecipe.timesMade}
-            />
+            <label className="space-y-2">
+              <span className="text-sm font-bold text-stone-700">Private notes</span>
+              <textarea
+                className={`${textareaClassName} min-h-32`}
+                onChange={(event) => updateField("notes", event.target.value)}
+                placeholder="What made this one ours?"
+                value={formRecipe.notes ?? ""}
+              />
+            </label>
+            <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
+              <TextField
+                label="Date added"
+                onChange={(value) => updateField("dateAdded", value)}
+                type="date"
+                value={formRecipe.dateAdded}
+              />
+              <TextField
+                label="Last made"
+                onChange={(value) => updateField("lastMadeDate", value || undefined)}
+                type="date"
+                value={formRecipe.lastMadeDate ?? ""}
+              />
+              <NumberField
+                label="Times made"
+                min={0}
+                onChange={(value) => updateField("timesMade", value ?? 0)}
+                value={formRecipe.timesMade}
+              />
+            </div>
           </div>
         </aside>
       </section>
@@ -635,11 +637,141 @@ const inputClassName =
 const textareaClassName =
   "w-full resize-y rounded-lg border border-stone-200 bg-white p-4 text-stone-950 outline-none transition placeholder:text-stone-400 focus:border-[var(--tomato)] focus:ring-4 focus:ring-red-100";
 
-function FormSectionTitle({ title }: { title: string }) {
+function FormSectionTitle({ eyebrow, title }: { eyebrow?: string; title: string }) {
   return (
-    <h2 className="font-serif text-2xl leading-tight text-stone-950 sm:text-3xl">
-      {title}
-    </h2>
+    <div>
+      {eyebrow ? (
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--tomato)]">
+          {eyebrow}
+        </p>
+      ) : null}
+      <h2 className="mt-1 font-serif text-2xl leading-tight text-stone-950 sm:text-3xl">
+        {title}
+      </h2>
+    </div>
+  );
+}
+
+function CategoryPicker({
+  categories,
+  onToggleCategory,
+  selectedCategoryIds,
+}: {
+  categories: Category[];
+  onToggleCategory: (categoryId: string) => void;
+  selectedCategoryIds: string[];
+}) {
+  const [categoryQuery, setCategoryQuery] = useState("");
+  const [isCategoryMenuOpen, setIsCategoryMenuOpen] = useState(false);
+  const selectedCategories = categories.filter((category) =>
+    selectedCategoryIds.includes(category.id),
+  );
+  const filteredCategories = useMemo(() => {
+    const normalizedQuery = categoryQuery.trim().toLowerCase();
+    const visibleCategories = normalizedQuery
+      ? categories.filter((category) =>
+          [category.name, category.description]
+            .join(" ")
+            .toLowerCase()
+            .includes(normalizedQuery),
+        )
+      : categories;
+
+    return visibleCategories.slice(0, 8);
+  }, [categories, categoryQuery]);
+
+  return (
+    <div className="relative space-y-2">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-sm font-bold text-stone-700">Categories</span>
+        <span className="text-xs font-semibold text-stone-500">
+          Albums, not cuisine
+        </span>
+      </div>
+      <div className="rounded-lg border border-stone-200 bg-white p-3 shadow-sm">
+        {selectedCategories.length > 0 ? (
+          <div className="mb-3 flex flex-wrap gap-2">
+            {selectedCategories.map((category) => (
+              <button
+                className="inline-flex min-h-8 items-center gap-2 rounded-full bg-stone-950 px-3 text-xs font-bold text-white"
+                key={category.id}
+                onClick={() => onToggleCategory(category.id)}
+                type="button"
+              >
+                {category.name}
+                <X aria-hidden="true" className="h-3.5 w-3.5" />
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        <label className="relative block">
+          <span className="sr-only">Search categories</span>
+          <Search
+            aria-hidden="true"
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400"
+          />
+          <input
+            className="h-10 w-full rounded-lg border border-stone-200 bg-stone-50 pl-9 pr-3 text-sm font-semibold text-stone-950 outline-none transition placeholder:text-stone-400 focus:border-[var(--tomato)] focus:bg-white focus:ring-4 focus:ring-red-100"
+            onFocus={() => setIsCategoryMenuOpen(true)}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                setIsCategoryMenuOpen(false);
+              }
+            }}
+            onChange={(event) => setCategoryQuery(event.target.value)}
+            placeholder="Search or choose categories"
+            value={categoryQuery}
+          />
+        </label>
+
+        {categories.length === 0 ? (
+          <p className="mt-3 text-sm font-semibold text-stone-500">
+            Create categories from the Recipes page.
+          </p>
+        ) : null}
+
+        {isCategoryMenuOpen && categories.length > 0 ? (
+          <div className="absolute left-0 right-0 top-full z-30 mt-2 rounded-lg border border-stone-200 bg-white p-2 shadow-xl">
+            <div className="max-h-56 space-y-1 overflow-y-auto">
+              {filteredCategories.map((category) => {
+                const selected = selectedCategoryIds.includes(category.id);
+
+                return (
+                  <button
+                    className={`flex min-h-10 w-full items-center justify-between gap-3 rounded-lg px-3 text-left text-sm font-bold transition ${
+                      selected
+                        ? "bg-[#fff4e4] text-[var(--tomato)]"
+                        : "text-stone-700 hover:bg-stone-50"
+                    }`}
+                    key={category.id}
+                    onClick={() => onToggleCategory(category.id)}
+                    type="button"
+                  >
+                    <span className="truncate">{category.name}</span>
+                    {selected ? <Check aria-hidden="true" className="h-4 w-4" /> : null}
+                  </button>
+                );
+              })}
+            </div>
+
+            {filteredCategories.length === 0 ? (
+              <p className="px-3 py-2 text-sm font-semibold text-stone-500">
+                No categories match that search.
+              </p>
+            ) : null}
+
+            <button
+              className="mt-2 min-h-9 w-full rounded-lg bg-stone-100 px-3 text-sm font-bold text-stone-700"
+              onClick={() => setIsCategoryMenuOpen(false)}
+              type="button"
+            >
+              Done
+            </button>
+          </div>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
