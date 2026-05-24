@@ -15,6 +15,7 @@ import {
   getAuthErrorMessage,
   getUserProfile,
   saveUserProfile,
+  sendPasswordReset,
   signInWithEmailPassword,
   signInWithGoogle as signInWithGoogleProvider,
   signOutUser,
@@ -28,6 +29,7 @@ type AuthContextValue = {
   isLoading: boolean;
   missingConfig: readonly string[];
   profile?: UserProfile;
+  sendPasswordReset: (email: string) => Promise<void>;
   signIn: (input: { email: string; password: string }) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -100,6 +102,18 @@ export function FirebaseAuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const resetPassword = useCallback(async (email: string) => {
+    setError(undefined);
+
+    try {
+      await sendPasswordReset(email);
+    } catch (authError) {
+      const message = getAuthErrorMessage(authError, "Unable to send password reset.");
+      setError(message);
+      throw new Error(message);
+    }
+  }, []);
+
   const signInWithGoogle = useCallback(async () => {
     setIsLoading(true);
     setError(undefined);
@@ -160,12 +174,13 @@ export function FirebaseAuthProvider({ children }: { children: ReactNode }) {
       isLoading,
       missingConfig: missingFirebaseConfig,
       profile,
+      sendPasswordReset: resetPassword,
       signIn,
       signInWithGoogle,
       signOut,
       signUp,
     }),
-    [error, isLoading, profile, signIn, signInWithGoogle, signOut, signUp],
+    [error, isLoading, profile, resetPassword, signIn, signInWithGoogle, signOut, signUp],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

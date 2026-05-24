@@ -5,6 +5,7 @@ import {
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
   onAuthStateChanged,
+  sendPasswordResetEmail as sendFirebasePasswordResetEmail,
   setPersistence,
   signInWithEmailAndPassword,
   signInWithPopup,
@@ -181,6 +182,11 @@ export async function signInWithEmailPassword({
   const auth = await getAuthWithLocalPersistence();
   const credentials = await signInWithEmailAndPassword(auth, email, password);
   return getOrCreateUserProfile(credentials.user);
+}
+
+export async function sendPasswordReset(email: string) {
+  const auth = await getAuthWithLocalPersistence();
+  await sendFirebasePasswordResetEmail(auth, email);
 }
 
 export async function signInWithGoogle() {

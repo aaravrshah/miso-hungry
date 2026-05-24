@@ -11,6 +11,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
     isLoading,
     missingConfig,
     profile,
+    sendPasswordReset,
     signIn,
     signInWithGoogle,
     signUp,
@@ -21,10 +22,13 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [formError, setFormError] = useState<string | undefined>();
+  const [formMessage, setFormMessage] = useState<string | undefined>();
+  const [isSendingPasswordReset, setIsSendingPasswordReset] = useState(false);
 
   async function submitAuth(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFormError(undefined);
+    setFormMessage(undefined);
 
     try {
       if (mode === "sign-up") {
@@ -39,6 +43,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   async function continueWithGoogle() {
     setFormError(undefined);
+    setFormMessage(undefined);
 
     try {
       await signInWithGoogle();
@@ -46,6 +51,31 @@ export function AuthGate({ children }: { children: ReactNode }) {
       setFormError(
         authError instanceof Error ? authError.message : "Google sign in failed.",
       );
+    }
+  }
+
+  async function resetPassword() {
+    const trimmedEmail = email.trim();
+
+    setFormError(undefined);
+    setFormMessage(undefined);
+
+    if (!trimmedEmail) {
+      setFormError("Enter your email address first, then tap Forgot password.");
+      return;
+    }
+
+    setIsSendingPasswordReset(true);
+
+    try {
+      await sendPasswordReset(trimmedEmail);
+      setFormMessage(`Password reset email sent to ${trimmedEmail}.`);
+    } catch (authError) {
+      setFormError(
+        authError instanceof Error ? authError.message : "Unable to send password reset.",
+      );
+    } finally {
+      setIsSendingPasswordReset(false);
     }
   }
 
@@ -101,17 +131,24 @@ export function AuthGate({ children }: { children: ReactNode }) {
             </p>
           </div>
 
-          <button
-            className="inline-flex min-h-12 w-full items-center justify-center gap-3 rounded-lg border border-stone-200 bg-white px-5 text-sm font-bold text-stone-800 shadow-sm transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-70"
-            disabled={isLoading}
-            onClick={continueWithGoogle}
-            type="button"
-          >
-            <span className="grid h-6 w-6 place-items-center rounded-full border border-stone-200 bg-white font-bold text-[#4285f4]">
-              G
-            </span>
-            Continue with Google
-          </button>
+          <div className="hidden md:block">
+            <button
+              className="inline-flex min-h-12 w-full items-center justify-center gap-3 rounded-lg border border-stone-200 bg-white px-5 text-sm font-bold text-stone-800 shadow-sm transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-70"
+              disabled={isLoading}
+              onClick={continueWithGoogle}
+              type="button"
+            >
+              <span className="grid h-6 w-6 place-items-center rounded-full border border-stone-200 bg-white font-bold text-[#4285f4]">
+                G
+              </span>
+              Continue with Google
+            </button>
+          </div>
+
+          <p className="rounded-lg bg-stone-50 p-3 text-xs font-semibold leading-5 text-stone-600 md:hidden">
+            Google sign-in is off on mobile because it is unreliable in iPhone
+            home-screen apps. Use email and password on this device.
+          </p>
 
           <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-[0.16em] text-stone-400">
             <span className="h-px flex-1 bg-stone-200" />
@@ -164,7 +201,19 @@ export function AuthGate({ children }: { children: ReactNode }) {
             />
           </label>
           <label className="space-y-2">
-            <span className="text-sm font-bold text-stone-700">Password</span>
+            <span className="flex items-center justify-between gap-3 text-sm font-bold text-stone-700">
+              Password
+              {mode === "sign-in" ? (
+                <button
+                  className="text-xs font-bold text-[var(--tomato)] underline-offset-4 hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={isSendingPasswordReset}
+                  onClick={resetPassword}
+                  type="button"
+                >
+                  {isSendingPasswordReset ? "Sending..." : "Forgot password?"}
+                </button>
+              ) : null}
+            </span>
             <input
               className={inputClassName}
               minLength={6}
@@ -178,6 +227,12 @@ export function AuthGate({ children }: { children: ReactNode }) {
           {formError || error ? (
             <p className="rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-700">
               {formError ?? error}
+            </p>
+          ) : null}
+
+          {formMessage ? (
+            <p className="rounded-lg bg-emerald-50 p-3 text-sm font-semibold text-emerald-700">
+              {formMessage}
             </p>
           ) : null}
 
