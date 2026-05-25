@@ -92,7 +92,7 @@ export function Navigation() {
               Miso Hungry
             </span>
             <span className="mt-1 block text-sm font-medium text-stone-500">
-              Sophie and friends
+              Recipes and friends
             </span>
           </span>
         </Link>

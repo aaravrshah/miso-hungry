@@ -218,7 +218,7 @@ export const demoRecipes: Recipe[] = [
       },
     ],
     lastMadeDate: "2026-04-04",
-    notes: "Sophie likes them slightly smaller so the syrup gets all the way through.",
+    notes: "Smaller pieces soak up syrup all the way through.",
     prepTime: "25 min",
     ratingCount: 2,
     ratingTotal: 9,

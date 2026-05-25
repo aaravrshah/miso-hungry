@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Check, Search, UserPlus, Users, X } from "lucide-react";
+import { BookOpen, Check, ChevronRight, Search, UserPlus, X } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
@@ -42,7 +42,6 @@ export function FriendsClient() {
     isFriend,
     isLoading,
     outgoingRequests,
-    removeFriend,
     sendFriendRequest,
   } = useSocial();
   const [actionError, setActionError] = useState<string | undefined>();
@@ -87,30 +86,23 @@ export function FriendsClient() {
   }
 
   return (
-    <div className="space-y-5 sm:space-y-8">
-      <section className="grid gap-3 sm:gap-4 lg:grid-cols-[1fr_22rem]">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--tomato)] sm:text-sm">
-            Friends
-          </p>
-          <h1 className="mt-1 font-serif text-2xl leading-tight text-stone-950 sm:mt-2 sm:text-5xl">
-            A shared table for favorite recipes
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600 sm:mt-3">
-            Add friends, visit profiles, try their recipes, and collaborate on keepers.
-          </p>
-        </div>
-        <div className="rounded-lg border border-stone-200 bg-white/76 p-3 shadow-sm sm:p-4">
-          <div className="flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-lg bg-rose-100 text-rose-700">
-              <Users aria-hidden="true" className="h-5 w-5" />
-            </span>
-            <div>
-              <p className="font-serif text-xl text-stone-950">{friends.length} friends</p>
-              <p className="text-sm font-medium text-stone-500">
-                {incomingRequests.length} incoming requests
-              </p>
-            </div>
+    <div className="space-y-4 sm:space-y-7">
+      <section className="rounded-lg border border-stone-200 bg-white/74 p-3 shadow-sm sm:p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--tomato)] sm:text-sm">
+              Friends
+            </p>
+            <h1 className="mt-0.5 font-serif text-2xl leading-tight text-stone-950 sm:mt-2 sm:text-5xl">
+              Friends
+            </h1>
+            <p className="mt-2 hidden max-w-2xl text-sm leading-6 text-stone-600 sm:block">
+              Add friends, visit profiles, try their recipes, and collaborate on keepers.
+            </p>
+          </div>
+          <div className="grid shrink-0 grid-cols-2 gap-2">
+            <FriendStat label="friends" value={friends.length} />
+            <FriendStat label="requests" value={incomingRequests.length} />
           </div>
         </div>
       </section>
@@ -122,12 +114,12 @@ export function FriendsClient() {
       ) : null}
 
       {collaborationInvites.incoming.length > 0 ? (
-        <section className="space-y-3">
-          <h2 className="font-serif text-2xl text-stone-950 sm:text-3xl">Collaboration invites</h2>
+        <section className="space-y-2 sm:space-y-3">
+          <h2 className="font-serif text-xl text-stone-950 sm:text-3xl">Collaboration invites</h2>
           <div className="grid gap-3 md:grid-cols-2">
             {collaborationInvites.incoming.map((invite) => (
               <article
-                className="rounded-lg border border-stone-200 bg-white/76 p-4 shadow-sm"
+                className="rounded-lg border border-stone-200 bg-white/76 p-3 shadow-sm sm:p-4"
                 key={invite.id}
               >
                 <div className="flex items-start gap-3">
@@ -143,7 +135,7 @@ export function FriendsClient() {
                     </p>
                   </div>
                 </div>
-                <div className="mt-4 flex gap-2">
+                <div className="mt-3 flex gap-2 sm:mt-4">
                   <button
                     className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-[var(--tomato)] px-3 text-sm font-bold text-white"
                     disabled={workingId === invite.id}
@@ -174,12 +166,12 @@ export function FriendsClient() {
       ) : null}
 
       {collaborationInvites.outgoing.length > 0 ? (
-        <section className="space-y-3">
-          <h2 className="font-serif text-2xl text-stone-950 sm:text-3xl">Pending recipe invites</h2>
+        <section className="space-y-2 sm:space-y-3">
+          <h2 className="font-serif text-xl text-stone-950 sm:text-3xl">Pending recipe invites</h2>
           <div className="grid gap-3 md:grid-cols-2">
             {collaborationInvites.outgoing.map((invite) => (
               <article
-                className="rounded-lg border border-stone-200 bg-white/76 p-4 shadow-sm"
+                className="rounded-lg border border-stone-200 bg-white/76 p-3 shadow-sm sm:p-4"
                 key={invite.id}
               >
                 <p className="font-serif text-xl leading-tight text-stone-950">
@@ -195,16 +187,16 @@ export function FriendsClient() {
       ) : null}
 
       {incomingRequests.length > 0 ? (
-        <section className="space-y-3">
-          <h2 className="font-serif text-2xl text-stone-950 sm:text-3xl">Friend requests</h2>
+        <section className="space-y-2 sm:space-y-3">
+          <h2 className="font-serif text-xl text-stone-950 sm:text-3xl">Friend requests</h2>
           <div className="grid gap-3 md:grid-cols-2">
             {incomingRequests.map((request) => (
               <article
-                className="rounded-lg border border-stone-200 bg-white/76 p-4 shadow-sm"
+                className="rounded-lg border border-stone-200 bg-white/76 p-3 shadow-sm sm:p-4"
                 key={request.id}
               >
                 <UserLine user={request.fromUser} />
-                <div className="mt-4 flex gap-2">
+                <div className="mt-3 flex gap-2 sm:mt-4">
                   <button
                     className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-[var(--tomato)] px-3 text-sm font-bold text-white"
                     disabled={workingId === request.id}
@@ -234,11 +226,11 @@ export function FriendsClient() {
         </section>
       ) : null}
 
-      <section className="space-y-3">
+      <section className="space-y-2 sm:space-y-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="font-serif text-2xl text-stone-950 sm:text-3xl">Your friends</h2>
-            <p className="mt-1 text-sm text-stone-600">
+            <h2 className="font-serif text-xl text-stone-950 sm:text-3xl">Your friends</h2>
+            <p className="mt-1 hidden text-sm text-stone-600 sm:block">
               Friends can discover your recipes. Collaborators can edit recipes you invite them to.
             </p>
           </div>
@@ -253,44 +245,17 @@ export function FriendsClient() {
             No friends yet. Search for someone below and send the first request.
           </p>
         ) : null}
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
           {friends.map((friend) => (
-            <article
-              className="rounded-lg border border-stone-200 bg-white/76 p-4 shadow-sm"
-              key={friend.id}
-            >
-              <UserLine user={friend} />
-              <div className="mt-4 flex gap-2">
-                <Link
-                  className="inline-flex min-h-10 flex-1 items-center justify-center rounded-lg border border-stone-200 bg-white px-3 text-sm font-bold text-[var(--tomato)] shadow-sm transition hover:bg-stone-50"
-                  href={`/profiles/${friend.id}`}
-                >
-                  Profile
-                </Link>
-                <button
-                  className="inline-flex min-h-10 flex-1 items-center justify-center rounded-lg border border-red-200 bg-red-50 px-3 text-sm font-bold text-red-700"
-                  disabled={workingId === friend.id}
-                  onClick={() => {
-                    if (!window.confirm(`Remove ${friend.displayName} as a friend?`)) {
-                      return;
-                    }
-
-                    runAction(friend.id, () => removeFriend(friend.id));
-                  }}
-                  type="button"
-                >
-                  Remove
-                </button>
-              </div>
-            </article>
+            <FriendProfileLink friend={friend} key={friend.id} />
           ))}
         </div>
       </section>
 
-      <section className="space-y-4">
+      <section className="space-y-3 sm:space-y-4">
         <div>
-          <h2 className="font-serif text-2xl text-stone-950 sm:text-3xl">Find people</h2>
-          <p className="mt-1 text-sm text-stone-600">
+          <h2 className="font-serif text-xl text-stone-950 sm:text-3xl">Find people</h2>
+          <p className="mt-1 hidden text-sm text-stone-600 sm:block">
             Search by display name or email to send a friend request.
           </p>
         </div>
@@ -301,7 +266,7 @@ export function FriendsClient() {
             className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-stone-400"
           />
           <input
-            className="h-12 w-full rounded-lg border border-stone-200 bg-white/82 pl-12 pr-4 text-base text-stone-950 shadow-sm outline-none transition placeholder:text-stone-400 focus:border-[var(--tomato)] focus:ring-4 focus:ring-red-100"
+            className="h-11 w-full rounded-lg border border-stone-200 bg-white/82 pl-12 pr-4 text-base text-stone-950 shadow-sm outline-none transition placeholder:text-stone-400 focus:border-[var(--tomato)] focus:ring-4 focus:ring-red-100 sm:h-12"
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search users"
             type="search"
@@ -311,11 +276,11 @@ export function FriendsClient() {
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {people.map((person) => (
             <article
-              className="rounded-lg border border-stone-200 bg-white/76 p-4 shadow-sm"
+              className="rounded-lg border border-stone-200 bg-white/76 p-3 shadow-sm sm:p-4"
               key={person.id}
             >
               <UserLine user={person} />
-              <div className="mt-4 flex gap-2">
+              <div className="mt-3 flex gap-2 sm:mt-4">
                 <Link
                   className="inline-flex min-h-10 flex-1 items-center justify-center rounded-lg border border-stone-200 bg-white px-3 text-sm font-bold text-stone-700"
                   href={`/profiles/${person.id}`}
@@ -355,11 +320,44 @@ export function FriendsClient() {
 
       {recipesFromFriends.length > 0 ? (
         <section className="space-y-4">
-          <h2 className="font-serif text-3xl text-stone-950">Recipes from friends</h2>
+          <h2 className="font-serif text-xl text-stone-950 sm:text-3xl">Recipes from friends</h2>
           <RecipeGrid recipes={recipesFromFriends.slice(0, 6)} />
         </section>
       ) : null}
     </div>
+  );
+}
+
+function FriendStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="min-w-16 rounded-lg border border-stone-200 bg-white px-2.5 py-2 text-center shadow-sm sm:min-w-24 sm:px-4">
+      <p className="font-serif text-xl leading-none text-stone-950 sm:text-2xl">{value}</p>
+      <p className="mt-1 text-[0.65rem] font-bold uppercase tracking-[0.1em] text-stone-500 sm:text-xs">
+        {label}
+      </p>
+    </div>
+  );
+}
+
+function FriendProfileLink({ friend }: { friend: UserSummary }) {
+  const displayName = String(friend.displayName || friend.email || "Cook");
+
+  return (
+    <Link
+      className="flex min-h-16 items-center gap-3 rounded-lg border border-stone-200 bg-white/78 px-3 py-2.5 shadow-sm transition hover:-translate-y-0.5 hover:bg-white hover:shadow-md"
+      href={`/profiles/${friend.id}`}
+    >
+      <UserAvatar displayName={displayName} photoURL={friend.photoURL} size="sm" />
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-serif text-lg leading-tight text-stone-950">
+          {displayName}
+        </p>
+        {friend.username ? (
+          <p className="truncate text-sm font-medium text-stone-500">@{friend.username}</p>
+        ) : null}
+      </div>
+      <ChevronRight aria-hidden="true" className="h-4 w-4 shrink-0 text-stone-400" />
+    </Link>
   );
 }
 
@@ -368,9 +366,9 @@ function UserLine({ user }: { user: UserSummary | UserProfile }) {
 
   return (
     <div className="flex min-w-0 items-center gap-3">
-      <UserAvatar displayName={displayName} photoURL={user.photoURL} size="md" />
+      <UserAvatar displayName={displayName} photoURL={user.photoURL} size="sm" />
       <div className="min-w-0">
-        <p className="truncate font-serif text-xl leading-tight text-stone-950">
+        <p className="truncate font-serif text-lg leading-tight text-stone-950 sm:text-xl">
           {displayName}
         </p>
         {user.username ? (

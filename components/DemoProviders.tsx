@@ -1,6 +1,6 @@
 "use client";
 
-import { ChefHat } from "lucide-react";
+import { ChefHat, Settings } from "lucide-react";
 import Link from "next/link";
 import {
   useCallback,
@@ -785,7 +785,16 @@ export function DemoAppLayout({ children }: { children: ReactNode }) {
                   </span>
                 </span>
               </Link>
-              <NotificationBell />
+              <div className="flex shrink-0 items-center gap-2">
+                <NotificationBell />
+                <Link
+                  aria-label="Settings"
+                  className="grid h-10 w-10 place-items-center rounded-lg border border-stone-200 bg-white/82 text-stone-700 shadow-sm transition hover:text-[var(--tomato)]"
+                  href="/settings"
+                >
+                  <Settings aria-hidden="true" className="h-5 w-5" />
+                </Link>
+              </div>
             </div>
           </header>
 

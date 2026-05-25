@@ -365,7 +365,7 @@ export function SettingsClient() {
                 <input
                   className="min-w-0 flex-1 bg-transparent pl-2 text-stone-950 outline-none placeholder:text-stone-400"
                   onChange={(event) => setUsernameDraft(event.target.value)}
-                  placeholder="aarav"
+                  placeholder="cookname"
                   value={username}
                 />
               </span>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ClipboardCheck, ImagePlus, Save, Search, X } from "lucide-react";
+import { Check, ImagePlus, Save, Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useAuth } from "@/components/AuthProvider";
@@ -8,8 +8,9 @@ import { StarRating } from "@/components/StarRating";
 import { useRecipes } from "@/components/RecipeStore";
 import { parseIngredients } from "@/lib/ingredientRecognition";
 import {
-  formatTimerMinutes,
+  averageRating,
   defaultRecipeVisibility,
+  formatTimerMinutes,
   type Category,
   type CategoryName,
   type Difficulty,
@@ -73,8 +74,6 @@ function createBlankRecipe(): Recipe {
     ingredients: [],
     directions: [],
     notes: "",
-    aaravRating: undefined,
-    sophieRating: undefined,
     dateAdded: today(),
     lastMadeDate: undefined,
     timesMade: 0,
@@ -251,7 +250,6 @@ export function AddRecipeForm({
   const [ingredientsText, setIngredientsText] = useState(ingredientTextFromRecipe(initialRecipe));
   const [directionsText, setDirectionsText] = useState(directionTextFromRecipe(initialRecipe));
   const [isSaving, setIsSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [tagsText, setTagsText] = useState(initialRecipe.tags?.join(", ") ?? "");
   const [uploadedImagePreviewUrl, setUploadedImagePreviewUrl] = useState<string | undefined>();
   const [warning, setWarning] = useState<string | undefined>();
@@ -264,12 +262,7 @@ export function AddRecipeForm({
   const parsedDirections = parseDirections(directionsText);
   const detectedTimers = parsedDirections.filter((direction) => direction.timerMinutes);
   const coverPreviewUrl = uploadedImagePreviewUrl ?? formRecipe.coverImageUrl;
-  const currentRating =
-    profile?.displayName === "Sophie"
-      ? formRecipe.sophieRating
-      : profile?.displayName === "Aarav"
-        ? formRecipe.aaravRating
-        : formRecipe.averageUserRating;
+  const currentRating = formRecipe.averageUserRating ?? averageRating(formRecipe);
 
   useEffect(() => {
     return () => {
@@ -298,16 +291,6 @@ export function AddRecipeForm({
   }
 
   function updateCurrentUserRating(value: number | undefined) {
-    if (profile?.displayName === "Sophie") {
-      updateField("sophieRating", value);
-      return;
-    }
-
-    if (profile?.displayName === "Aarav") {
-      updateField("aaravRating", value);
-      return;
-    }
-
     updateField("averageUserRating", value);
     updateField("ratingCount", typeof value === "number" ? 1 : 0);
     updateField("ratingTotal", value ?? 0);
@@ -379,7 +362,6 @@ export function AddRecipeForm({
         return;
       }
 
-      setSaved(true);
       onSaved?.(savedRecipe);
 
       if (!isEditing) {
@@ -393,39 +375,34 @@ export function AddRecipeForm({
   }
 
   return (
-    <form className="space-y-4 sm:space-y-6" onSubmit={submitRecipe}>
-      <section className="grid gap-3 lg:grid-cols-[1fr_18rem]">
-        <div>
+    <form className="space-y-3 sm:space-y-6" onSubmit={submitRecipe}>
+      <section className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--tomato)] sm:text-sm">
             {isEditing ? "Edit Recipe" : "Add Recipe"}
           </p>
-          <h1 className="mt-1 font-serif text-2xl leading-tight text-stone-950 sm:mt-2 sm:text-5xl">
-            {isEditing ? "Tune the keeper" : "Save the next keeper"}
+          <h1 className="mt-0.5 truncate font-serif text-2xl leading-tight text-stone-950 sm:mt-2 sm:text-5xl">
+            {isEditing ? "Edit recipe" : "Add recipe"}
           </h1>
         </div>
-        <div className="rounded-lg border border-stone-200 bg-white/72 p-3 shadow-sm sm:p-4">
-          <div className="flex items-center gap-3">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-rose-100 text-rose-700">
-              <ClipboardCheck aria-hidden="true" className="h-5 w-5" />
-            </span>
-            <div>
-              <p className="font-serif text-xl text-stone-950">Recipe draft</p>
-              <p className="text-sm font-medium text-stone-500">
-                {saved ? "Saved in your cookbook" : "Plain text, parsed on save"}
-              </p>
-            </div>
-          </div>
-        </div>
+        <button
+          className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-[var(--tomato)] px-4 text-sm font-bold text-white shadow-sm transition hover:bg-[#a94e3a] sm:hidden"
+          disabled={isSaving}
+          type="submit"
+        >
+          <Save aria-hidden="true" className="h-4 w-4" />
+          {isSaving ? "Saving..." : "Save"}
+        </button>
       </section>
 
-      <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_24rem]">
-        <div className="space-y-4">
-          <div className="space-y-4 rounded-lg border border-stone-200 bg-white/76 p-3 shadow-sm sm:p-5">
-            <FormSectionTitle eyebrow="Start here" title="Name and organize" />
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem] xl:gap-5">
+        <div className="space-y-3 sm:space-y-4">
+          <div className="space-y-3 rounded-lg border border-stone-200 bg-white/76 p-3 shadow-sm sm:space-y-4 sm:p-5">
+            <FormSectionTitle eyebrow="Start here" title="Basics" />
             <TextField
               label="Recipe title"
               onChange={(value) => updateField("title", value)}
-              placeholder="Sophie-style dumplings"
+              placeholder="Weeknight dumplings"
               required
               value={formRecipe.title}
             />
@@ -434,10 +411,6 @@ export function AddRecipeForm({
               onToggleCategory={toggleCategory}
               selectedCategoryIds={selectedCategoryIds}
             />
-            <VisibilityPicker
-              onChange={(value) => updateField("visibility", value)}
-              value={formRecipe.visibility ?? profile?.defaultRecipeVisibility ?? defaultRecipeVisibility}
-            />
           </div>
 
           <div className="space-y-3 rounded-lg border border-stone-200 bg-white/76 p-3 shadow-sm sm:p-5">
@@ -445,7 +418,7 @@ export function AddRecipeForm({
             <label className="space-y-2">
               <span className="text-sm font-bold text-stone-700">One ingredient per line</span>
               <textarea
-                className={`${textareaClassName} min-h-56 font-mono text-[0.95rem] leading-7 sm:min-h-72`}
+                className={`${textareaClassName} min-h-44 font-mono text-[0.95rem] leading-7 sm:min-h-72`}
                 onChange={(event) => {
                   setIngredientsText(event.target.value);
                   setEmptyStructureAcknowledged(false);
@@ -464,7 +437,7 @@ export function AddRecipeForm({
                 Paste or type the method
               </span>
               <textarea
-                className={`${textareaClassName} min-h-64 text-base leading-7 sm:min-h-80`}
+                className={`${textareaClassName} min-h-52 text-base leading-7 sm:min-h-80`}
                 onChange={(event) => {
                   setDirectionsText(event.target.value);
                   setEmptyStructureAcknowledged(false);
@@ -489,6 +462,10 @@ export function AddRecipeForm({
         <aside className="space-y-4 xl:sticky xl:top-24 xl:self-start">
           <div className="space-y-4 rounded-lg border border-stone-200 bg-white/72 p-4 shadow-sm">
             <FormSectionTitle eyebrow="Optional details" title="Details" />
+            <VisibilityPicker
+              onChange={(value) => updateField("visibility", value)}
+              value={formRecipe.visibility ?? profile?.defaultRecipeVisibility ?? defaultRecipeVisibility}
+            />
             <label className="space-y-2">
               <span className="text-sm font-bold text-stone-700">Description</span>
               <textarea
@@ -660,10 +637,10 @@ export function AddRecipeForm({
 }
 
 const inputClassName =
-  "h-12 w-full rounded-lg border border-stone-200 bg-white px-4 text-stone-950 outline-none transition placeholder:text-stone-400 focus:border-[var(--tomato)] focus:ring-4 focus:ring-red-100";
+  "h-11 w-full rounded-lg border border-stone-200 bg-white px-3 text-stone-950 outline-none transition placeholder:text-stone-400 focus:border-[var(--tomato)] focus:ring-4 focus:ring-red-100 sm:h-12 sm:px-4";
 
 const textareaClassName =
-  "w-full resize-y rounded-lg border border-stone-200 bg-white p-4 text-stone-950 outline-none transition placeholder:text-stone-400 focus:border-[var(--tomato)] focus:ring-4 focus:ring-red-100";
+  "w-full resize-y rounded-lg border border-stone-200 bg-white p-3 text-stone-950 outline-none transition placeholder:text-stone-400 focus:border-[var(--tomato)] focus:ring-4 focus:ring-red-100 sm:p-4";
 
 function FormSectionTitle({ eyebrow, title }: { eyebrow?: string; title: string }) {
   return (
@@ -673,7 +650,7 @@ function FormSectionTitle({ eyebrow, title }: { eyebrow?: string; title: string 
           {eyebrow}
         </p>
       ) : null}
-      <h2 className="mt-1 font-serif text-2xl leading-tight text-stone-950 sm:text-3xl">
+      <h2 className="mt-0.5 font-serif text-xl leading-tight text-stone-950 sm:mt-1 sm:text-3xl">
         {title}
       </h2>
     </div>
@@ -712,14 +689,14 @@ function CategoryPicker({
     <div className="relative space-y-2">
       <div className="flex items-center justify-between gap-3">
         <span className="text-sm font-bold text-stone-700">Categories</span>
-        <span className="text-xs font-semibold text-stone-500">Albums</span>
+        <span className="hidden text-xs font-semibold text-stone-500 sm:inline">Albums</span>
       </div>
-      <div className="rounded-lg border border-stone-200 bg-white p-3 shadow-sm">
+      <div className="rounded-lg border border-stone-200 bg-white p-2.5 shadow-sm sm:p-3">
         {selectedCategories.length > 0 ? (
-          <div className="mb-3 flex flex-wrap gap-2">
+          <div className="mb-2 flex flex-nowrap gap-1.5 overflow-x-auto pb-0.5 sm:mb-3 sm:flex-wrap sm:gap-2 sm:overflow-visible sm:pb-0">
             {selectedCategories.map((category) => (
               <button
-                className="inline-flex min-h-8 items-center gap-2 rounded-full bg-stone-950 px-3 text-xs font-bold text-white"
+                className="inline-flex min-h-7 shrink-0 items-center gap-1.5 rounded-full bg-stone-950 px-2.5 text-xs font-bold text-white sm:min-h-8 sm:gap-2 sm:px-3"
                 key={category.id}
                 onClick={() => onToggleCategory(category.id)}
                 type="button"
@@ -738,7 +715,7 @@ function CategoryPicker({
             className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400"
           />
           <input
-            className="h-10 w-full rounded-lg border border-stone-200 bg-stone-50 pl-9 pr-3 text-sm font-semibold text-stone-950 outline-none transition placeholder:text-stone-400 focus:border-[var(--tomato)] focus:bg-white focus:ring-4 focus:ring-red-100"
+            className="h-9 w-full rounded-lg border border-stone-200 bg-stone-50 pl-9 pr-3 text-sm font-semibold text-stone-950 outline-none transition placeholder:text-stone-400 focus:border-[var(--tomato)] focus:bg-white focus:ring-4 focus:ring-red-100 sm:h-10"
             onFocus={() => setIsCategoryMenuOpen(true)}
             onKeyDown={(event) => {
               if (event.key === "Escape") {
@@ -814,7 +791,7 @@ function VisibilityPicker({
       <div className="grid gap-2 sm:grid-cols-3">
         {visibilityOptions.map((option) => (
           <button
-            className={`min-h-20 rounded-lg border p-3 text-left transition ${
+            className={`min-h-10 rounded-lg border px-3 py-2 text-left transition sm:min-h-20 sm:p-3 ${
               value === option.value
                 ? "border-[var(--tomato)] bg-[#fff4e4] text-stone-950 ring-2 ring-orange-100"
                 : "border-stone-200 bg-white text-stone-700 hover:bg-stone-50"
@@ -824,7 +801,7 @@ function VisibilityPicker({
             type="button"
           >
             <span className="block text-sm font-bold">{option.label}</span>
-            <span className="mt-1 block text-xs font-medium leading-5 text-stone-500">
+            <span className="mt-1 hidden text-xs font-medium leading-5 text-stone-500 sm:block">
               {option.description}
             </span>
           </button>

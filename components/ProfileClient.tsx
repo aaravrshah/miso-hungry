@@ -30,6 +30,7 @@ export function ProfileClient({ userId }: ProfileClientProps) {
     isFriend,
     isLoading,
     outgoingRequests,
+    removeFriend,
     sendFriendRequest,
   } = useSocial();
   const [actionError, setActionError] = useState<string | undefined>();
@@ -151,6 +152,25 @@ export function ProfileClient({ userId }: ProfileClientProps) {
     }
   }
 
+  async function removeFriendship() {
+    if (!window.confirm(`Remove ${displayName} as a friend?`)) {
+      return;
+    }
+
+    setIsSending(true);
+    setActionError(undefined);
+
+    try {
+      await removeFriend(userId);
+    } catch (friendError) {
+      setActionError(
+        friendError instanceof Error ? friendError.message : "Unable to remove friend.",
+      );
+    } finally {
+      setIsSending(false);
+    }
+  }
+
   if (!profile && isLoading) {
     return (
       <p className="rounded-lg border border-stone-200 bg-white/72 p-4 text-sm font-semibold text-stone-600">
@@ -226,10 +246,20 @@ export function ProfileClient({ userId }: ProfileClientProps) {
               Edit profile
             </Link>
           ) : isFriend(userId) ? (
-            <span className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-emerald-50 px-4 text-sm font-bold text-emerald-700 ring-1 ring-emerald-200">
-              <Handshake aria-hidden="true" className="h-4 w-4" />
-              Friends
-            </span>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <span className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-emerald-50 px-4 text-sm font-bold text-emerald-700 ring-1 ring-emerald-200">
+                <Handshake aria-hidden="true" className="h-4 w-4" />
+                Friends
+              </span>
+              <button
+                className="inline-flex min-h-11 items-center justify-center rounded-lg border border-red-200 bg-red-50 px-4 text-sm font-bold text-red-700"
+                disabled={isSending}
+                onClick={removeFriendship}
+                type="button"
+              >
+                {isSending ? "Removing..." : "Remove"}
+              </button>
+            </div>
           ) : outgoingRequest ? (
             <span className="inline-flex min-h-11 items-center justify-center rounded-lg bg-stone-100 px-4 text-sm font-bold text-stone-600">
               Request pending

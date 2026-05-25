@@ -1,6 +1,6 @@
 import type { Category, Recipe, RecipeVisibility } from "@/lib/recipes";
 
-export type SupportedDisplayName = "Aarav" | "Sophie";
+export type SupportedDisplayName = string;
 export type CookedBy = SupportedDisplayName | "Both" | string;
 export type AccountVisibility = "private" | "public";
 export type NotificationBin = "social" | "collaboration" | "recipeActivity" | "reminders";

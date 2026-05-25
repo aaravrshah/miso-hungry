@@ -1,6 +1,6 @@
 # Miso Hungry
 
-A warm personal recipe tracking app for Sophie and me, built with Next.js, TypeScript, React, and Tailwind CSS.
+A warm personal recipe tracking app for saving, cooking, sharing, and rating recipes with friends.
 
 ## Run locally
 
@@ -39,8 +39,14 @@ auth, Cloud Firestore, and Firebase Storage in the Firebase console.
 
 Firestore collections used by the app:
 
-- `users/{userId}`: display name, email, and profile metadata for Aarav/Sophie.
+- `users/{userId}`: display name, email, username, profile photo, and profile metadata.
 - `recipes/{recipeId}`: recipe fields, ratings, category id/name, and cover image URL/path.
 - `categories/{categoryId}`: default and custom cookbook shelves.
 - `cookLogs/{cookLogId}`: one entry each time a signed-in user marks a recipe made.
 - `groceryLists/{listId}`: persisted grocery items for recipe planning and shopping.
+
+Firebase Storage paths used by the app:
+
+- `profile-images/{userId}/{fileName}`: user profile photos.
+- `recipe-images/{recipeId}/{fileName}`: recipe cover photos.
+- `category-images/{categoryId}/{fileName}`: category cover photos.

@@ -13,7 +13,6 @@ import {
   X,
 } from "lucide-react";
 import { useMemo, useState, type FormEvent, type KeyboardEvent } from "react";
-import { CategoryPill } from "@/components/CategoryPill";
 import { RecipeGrid } from "@/components/RecipeGrid";
 import { useRecipes } from "@/components/RecipeStore";
 import {
@@ -28,20 +27,28 @@ import {
 type FilterValue = CategoryName | "All";
 type RecipeScope = "mine" | "friends" | "public";
 
-const recipeScopes: Array<{ description: string; label: string; value: RecipeScope }> = [
+const recipeScopes: Array<{
+  description: string;
+  label: string;
+  shortLabel: string;
+  value: RecipeScope;
+}> = [
   {
     description: "Recipes you own or collaborate on",
     label: "My cookbook",
+    shortLabel: "Mine",
     value: "mine",
   },
   {
     description: "Recipes friends shared with friends",
     label: "Friends",
+    shortLabel: "Friends",
     value: "friends",
   },
   {
     description: "Public recipes from the app",
     label: "Explore",
+    shortLabel: "Explore",
     value: "public",
   },
 ];
@@ -81,6 +88,7 @@ export function RecipeBrowser({ initialCategory = "All" }: RecipeBrowserProps) {
   const [scope, setScope] = useState<RecipeScope>("mine");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<FilterValue>(initialCategory);
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const scopedRecipes =
     scope === "friends" ? friendRecipes : scope === "public" ? publicRecipes : recipes;
 
@@ -125,24 +133,29 @@ export function RecipeBrowser({ initialCategory = "All" }: RecipeBrowserProps) {
   const activeScope = recipeScopes.find((item) => item.value === scope) ?? recipeScopes[0];
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       <section className="space-y-2.5 sm:space-y-4">
-        <div>
-          <p className="hidden text-sm font-bold uppercase tracking-[0.18em] text-[var(--tomato)] sm:block">
-            All Recipes
-          </p>
-          <h1 className="font-serif text-2xl leading-tight text-stone-950 sm:mt-2 sm:text-5xl">
-            Recipes
-          </h1>
-          <p className="mt-1 hidden text-sm font-medium text-stone-500 sm:block">
-            {activeScope.description}.
-          </p>
+        <div className="flex items-end justify-between gap-3 sm:block">
+          <div>
+            <p className="hidden text-sm font-bold uppercase tracking-[0.18em] text-[var(--tomato)] sm:block">
+              All Recipes
+            </p>
+            <h1 className="font-serif text-2xl leading-tight text-stone-950 sm:mt-2 sm:text-5xl">
+              Recipes
+            </h1>
+            <p className="mt-1 hidden text-sm font-medium text-stone-500 sm:block">
+              {activeScope.description}.
+            </p>
+          </div>
+          <span className="rounded-full border border-stone-200 bg-white/70 px-3 py-1 text-xs font-bold text-stone-500 shadow-sm sm:hidden">
+            {isLoading ? "Loading" : `${filteredRecipes.length} recipes`}
+          </span>
         </div>
 
         <div className="grid grid-cols-3 gap-1 rounded-lg border border-stone-200 bg-white/60 p-1 shadow-sm sm:flex sm:w-fit sm:gap-2">
           {recipeScopes.map((item) => (
             <button
-              className={`min-h-9 rounded-md px-2 text-xs font-bold transition sm:min-h-10 sm:px-3 sm:text-sm ${
+              className={`min-h-8 rounded-md px-2 text-xs font-bold transition sm:min-h-10 sm:px-3 sm:text-sm ${
                 scope === item.value
                   ? "bg-stone-950 text-white shadow-sm"
                   : "text-stone-600 hover:bg-white"
@@ -154,7 +167,8 @@ export function RecipeBrowser({ initialCategory = "All" }: RecipeBrowserProps) {
               }}
               type="button"
             >
-              {item.label}
+              <span className="sm:hidden">{item.shortLabel}</span>
+              <span className="hidden sm:inline">{item.label}</span>
             </button>
           ))}
         </div>
@@ -184,15 +198,6 @@ export function RecipeBrowser({ initialCategory = "All" }: RecipeBrowserProps) {
         </div>
       </section>
 
-      <MobileCategoryRail
-        categoryCounts={categoryCounts}
-        categories={categories}
-        isLoading={isLoading}
-        onSelectCategory={selectCategory}
-        recipesCount={scopedRecipes.length}
-        selectedCategory={category}
-      />
-
       <div className="grid gap-5 lg:grid-cols-[18rem_minmax(0,1fr)] lg:items-start">
         <DesktopCategorySidebar
           categoryCounts={categoryCounts}
@@ -204,30 +209,49 @@ export function RecipeBrowser({ initialCategory = "All" }: RecipeBrowserProps) {
           selectedCategory={category}
         />
 
-        <div className="space-y-5">
+        <div className="space-y-4 sm:space-y-5">
           {error ? (
             <p className="rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-700">
               {error}
             </p>
           ) : null}
 
-          <section className="scroll-mt-24 space-y-3 lg:scroll-mt-8" id="recipe-results">
+          <section className="scroll-mt-24 space-y-2.5 sm:space-y-3 lg:scroll-mt-8" id="recipe-results">
             <div className="flex items-end justify-between gap-3">
               <div className="min-w-0">
-                <h2 className="truncate font-serif text-2xl leading-tight text-stone-950 sm:text-3xl">
+                <h2 className="truncate font-serif text-xl leading-tight text-stone-950 sm:text-3xl">
                   {activeCategoryLabel}
                 </h2>
-                <p className="mt-1 text-sm font-semibold text-stone-500">
+                <p className="mt-0.5 text-xs font-semibold text-stone-500 sm:mt-1 sm:text-sm">
                   {isLoading ? "Loading..." : `${filteredRecipes.length} recipe${
                     filteredRecipes.length === 1 ? "" : "s"
                   }`}
                 </p>
               </div>
-              <div className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-stone-200 bg-white/70 px-3 text-xs font-bold text-stone-600 shadow-sm lg:hidden">
+              <button
+                className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-stone-200 bg-white/70 px-3 text-xs font-bold text-stone-600 shadow-sm transition hover:bg-white lg:hidden"
+                onClick={() => setIsMobileFilterOpen((open) => !open)}
+                type="button"
+              >
                 <SlidersHorizontal aria-hidden="true" className="h-4 w-4" />
-                {query ? "Filtered" : "Browse"}
-              </div>
+                {category === "All" ? "Albums" : selectedCategory?.name ?? "Albums"}
+              </button>
             </div>
+
+            {isMobileFilterOpen ? (
+              <MobileFilterPanel
+                categories={categories}
+                categoryCounts={categoryCounts}
+                isLoading={isLoading}
+                onClose={() => setIsMobileFilterOpen(false)}
+                onSelectCategory={(nextCategory) => {
+                  setIsMobileFilterOpen(false);
+                  selectCategory(nextCategory);
+                }}
+                recipesCount={scopedRecipes.length}
+                selectedCategory={category}
+              />
+            ) : null}
 
             {isLoading && filteredRecipes.length === 0 ? (
               <p className="rounded-lg border border-stone-200 bg-white/72 p-4 text-sm font-semibold text-stone-600 shadow-sm">
@@ -255,23 +279,25 @@ export function RecipeBrowser({ initialCategory = "All" }: RecipeBrowserProps) {
   );
 }
 
-type MobileCategoryRailProps = {
+type MobileFilterPanelProps = {
   categories: ReturnType<typeof useRecipes>["categories"];
   categoryCounts: Map<string, number>;
   isLoading: boolean;
+  onClose: () => void;
   onSelectCategory: (category: FilterValue) => void;
   recipesCount: number;
   selectedCategory: FilterValue;
 };
 
-function MobileCategoryRail({
+function MobileFilterPanel({
   categories,
   categoryCounts,
   isLoading,
+  onClose,
   onSelectCategory,
   recipesCount,
   selectedCategory,
-}: MobileCategoryRailProps) {
+}: MobileFilterPanelProps) {
   if (isLoading && categories.length === 0) {
     return (
       <div className="lg:hidden">
@@ -283,29 +309,79 @@ function MobileCategoryRail({
   }
 
   return (
-    <div className="-mx-4 overflow-x-auto px-4 pb-1 lg:hidden">
-      <div className="flex gap-2">
-        <CategoryPill
+    <div className="rounded-lg border border-stone-200 bg-white/82 p-2 shadow-sm lg:hidden">
+      <div className="mb-1 flex items-center justify-between gap-3 px-1">
+        <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--tomato)]">
+          Albums
+        </p>
+        <button
+          aria-label="Close album filter"
+          className="grid h-8 w-8 place-items-center rounded-lg text-stone-500 hover:bg-stone-100"
+          onClick={onClose}
+          type="button"
+        >
+          <X aria-hidden="true" className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+        <MobileFilterOption
           active={selectedCategory === "All"}
           count={recipesCount}
-          name="All"
+          label="All recipes"
           onClick={() => onSelectCategory("All")}
         />
-        {categories.map((item) => (
-          <CategoryPill
-            active={
-              selectedCategory === item.id ||
-              selectedCategory === item.slug ||
-              selectedCategory === item.name
-            }
-            count={categoryCounts.get(item.id) ?? 0}
-            key={item.id}
-            name={item.name}
-            onClick={() => onSelectCategory(item.id)}
-          />
-        ))}
+        {categories.map((item) => {
+          const active =
+            selectedCategory === item.id ||
+            selectedCategory === item.slug ||
+            selectedCategory === item.name;
+
+          return (
+            <MobileFilterOption
+              active={active}
+              count={categoryCounts.get(item.id) ?? 0}
+              key={item.id}
+              label={item.name}
+              onClick={() => onSelectCategory(item.id)}
+            />
+          );
+        })}
       </div>
     </div>
+  );
+}
+
+function MobileFilterOption({
+  active,
+  count,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  count: number;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      className={`flex min-h-10 items-center justify-between gap-2 rounded-lg border px-2.5 text-left text-xs font-bold transition ${
+        active
+          ? "border-stone-950 bg-stone-950 text-white"
+          : "border-stone-200 bg-white text-stone-700 hover:bg-stone-50"
+      }`}
+      onClick={onClick}
+      type="button"
+    >
+      <span className="truncate">{label}</span>
+      <span
+        className={`shrink-0 rounded-full px-1.5 py-0.5 text-[0.65rem] ${
+          active ? "bg-white/18 text-white" : "bg-stone-100 text-stone-500"
+        }`}
+      >
+        {count}
+      </span>
+    </button>
   );
 }
 
