@@ -727,9 +727,10 @@ export async function createCollaborationInvite({
   const pendingCollaboratorIds = Array.from(
     new Set([...(recipe.pendingCollaboratorIds ?? []), toUser.id]),
   );
+  const cleanToUser = removeUndefinedDeep(toUser);
   const pendingCollaborators = [
     ...(recipe.pendingCollaborators ?? []).filter((collaborator) => collaborator.id !== toUser.id),
-    toUser,
+    cleanToUser,
   ];
   const invite: Omit<CollaborationInvite, "id"> = {
     fromUser: userSummaryFromProfile(user),
@@ -737,23 +738,29 @@ export async function createCollaborationInvite({
     recipeId: recipe.id,
     recipeTitle: recipe.title,
     status: "pending",
-    toUser,
+    toUser: cleanToUser,
     toUserId: toUser.id,
   };
 
   await Promise.all([
-    setDoc(inviteRef, {
-      ...invite,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    }),
-    updateDoc(doc(db, firebaseCollections.recipes, recipe.id), {
-      pendingCollaboratorIds,
-      pendingCollaborators,
-      updatedAt: serverTimestamp(),
-      updatedBy: user.id,
-      updatedByDisplayName: user.displayName,
-    }),
+    setDoc(
+      inviteRef,
+      removeUndefinedDeep({
+        ...invite,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      }),
+    ),
+    updateDoc(
+      doc(db, firebaseCollections.recipes, recipe.id),
+      removeUndefinedDeep({
+        pendingCollaboratorIds,
+        pendingCollaborators,
+        updatedAt: serverTimestamp(),
+        updatedBy: user.id,
+        updatedByDisplayName: user.displayName,
+      }),
+    ),
   ]);
 
   await createAppNotification({

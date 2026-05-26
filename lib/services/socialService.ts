@@ -21,16 +21,17 @@ import type {
   UserProfile,
   UserSummary,
 } from "@/lib/firebase/schema";
+import { removeUndefinedDeep } from "@/lib/services/helpers";
 import { createAppNotification } from "@/lib/services/notificationService";
 
 export function userSummaryFromProfile(profile: UserProfile): UserSummary {
-  return {
+  return removeUndefinedDeep({
     id: profile.id,
     displayName: String(profile.displayName || profile.email || "Cook"),
     email: profile.email,
     username: profile.username,
     photoURL: profile.photoURL,
-  };
+  });
 }
 
 function friendRequestFromDoc(id: string, data: Partial<FriendRequest>): FriendRequest {
@@ -197,11 +198,14 @@ export async function sendFriendRequest({
     toUser: userSummaryFromProfile(toUser),
     toUserId: toUser.id,
   };
-  const requestRef = await addDoc(collection(db, firebaseCollections.friendRequests), {
-    ...request,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
+  const requestRef = await addDoc(
+    collection(db, firebaseCollections.friendRequests),
+    removeUndefinedDeep({
+      ...request,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }),
+  );
 
   await createAppNotification({
     actor: userSummaryFromProfile(currentUser),
@@ -237,15 +241,18 @@ export async function acceptFriendRequest({
   const userIds = [request.fromUserId, request.toUserId].sort();
 
   await Promise.all([
-    setDoc(doc(db, firebaseCollections.friendships, friendshipId), {
-      userIds,
-      users: {
-        [request.fromUserId]: request.fromUser,
-        [request.toUserId]: userSummaryFromProfile(currentUser),
-      },
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    }),
+    setDoc(
+      doc(db, firebaseCollections.friendships, friendshipId),
+      removeUndefinedDeep({
+        userIds,
+        users: {
+          [request.fromUserId]: request.fromUser,
+          [request.toUserId]: userSummaryFromProfile(currentUser),
+        },
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      }),
+    ),
     updateDoc(doc(db, firebaseCollections.friendRequests, request.id), {
       status: "accepted",
       updatedAt: serverTimestamp(),

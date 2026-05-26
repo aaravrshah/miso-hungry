@@ -21,6 +21,7 @@ import type {
   NotificationPreferences,
   UserProfile,
 } from "@/lib/firebase/schema";
+import { removeUndefinedDeep } from "@/lib/services/helpers";
 import { defaultNotificationPreferences } from "@/lib/services/userService";
 
 function notificationFromDoc(id: string, data: Partial<AppNotification>): AppNotification {
@@ -66,11 +67,11 @@ export async function createAppNotification(input: NotificationCreateInput) {
   }
 
   const { db } = getFirebaseServices();
-  const notification = {
+  const notification = removeUndefinedDeep({
     ...input,
     isRead: input.isRead ?? false,
     createdAt: serverTimestamp(),
-  };
+  });
   const notificationRef = await addDoc(
     collection(db, firebaseCollections.notifications),
     notification,
