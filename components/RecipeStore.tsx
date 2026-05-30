@@ -110,7 +110,7 @@ function displayNameToCookedBy(displayName?: string): CookedBy {
 
 export function RecipeProvider({ children }: { children: ReactNode }) {
   const { profile } = useAuth();
-  const { friends } = useSocial();
+  const { friends, isLoading: isSocialLoading } = useSocial();
   const [allRecipes, setAllRecipes] = useState<Recipe[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [collaborationInvites, setCollaborationInvites] = useState<{
@@ -167,7 +167,10 @@ export function RecipeProvider({ children }: { children: ReactNode }) {
   const refreshRecipes = useCallback(async () => {
     const currentProfile = profile;
 
-    if (!currentProfile) {
+    if (!currentProfile || isSocialLoading) {
+      if (currentProfile) {
+        setIsLoading(true);
+      }
       return;
     }
 
@@ -186,7 +189,7 @@ export function RecipeProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [friendIds, profile]);
+  }, [friendIds, isSocialLoading, profile]);
 
   const refreshCategories = useCallback(async () => {
     if (!profile) {
@@ -236,6 +239,13 @@ export function RecipeProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    if (isSocialLoading) {
+      window.queueMicrotask(() => {
+        setIsLoading(true);
+      });
+      return;
+    }
+
     const currentUserId = currentProfile.id;
     let active = true;
 
@@ -276,7 +286,7 @@ export function RecipeProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
-  }, [friendIds, profile]);
+  }, [friendIds, isSocialLoading, profile]);
 
   const addRecipe = useCallback(
     async (recipe: RecipeCreateInput, coverImageFile?: File) => {

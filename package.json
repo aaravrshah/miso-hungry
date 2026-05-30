@@ -11,6 +11,7 @@
     "screenshots:demo": "next build && playwright test tests/ui/demo-screenshots.spec.ts"
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
     "firebase": "^12.13.0",
     "lucide-react": "latest",
     "next": "latest",

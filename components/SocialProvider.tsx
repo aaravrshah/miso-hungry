@@ -44,7 +44,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   const [friends, setFriends] = useState<UserSummary[]>([]);
   const [incomingRequests, setIncomingRequests] = useState<FriendRequest[]>([]);
   const [outgoingRequests, setOutgoingRequests] = useState<FriendRequest[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(Boolean(profile));
   const [error, setError] = useState<string | undefined>();
 
   const refreshSocialData = useCallback(async () => {

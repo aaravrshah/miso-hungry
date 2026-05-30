@@ -441,6 +441,7 @@ function recipeFromDoc(recipeId: string, data: Partial<Recipe>) {
     pendingCollaboratorIds: data.pendingCollaboratorIds?.filter(Boolean) ?? [],
     pendingCollaborators: data.pendingCollaborators ?? [],
     timesMade: data.timesMade ?? 0,
+    visibility: data.visibility ?? defaultRecipeVisibility,
   } as FirestoreRecipe;
 }
 
@@ -475,6 +476,37 @@ function recipesFromSnapshot(snapshot: Awaited<ReturnType<typeof getDocs>>) {
   );
 }
 
+async function fetchRecipesForFriend(
+  recipesCollection: ReturnType<typeof collection>,
+  friendId: string,
+) {
+  const [visibleResult, legacyResult] = await Promise.allSettled([
+    getDocs(
+      query(
+        recipesCollection,
+        where("createdBy", "==", friendId),
+        where("visibility", "in", ["friends", "public"]),
+      ),
+    ),
+    getDocs(query(recipesCollection, where("createdBy", "==", friendId))),
+  ]);
+
+  if (visibleResult.status === "rejected" && legacyResult.status === "rejected") {
+    throw visibleResult.reason;
+  }
+
+  const recipes = [
+    ...(visibleResult.status === "fulfilled" ? recipesFromSnapshot(visibleResult.value) : []),
+    ...(legacyResult.status === "fulfilled"
+      ? recipesFromSnapshot(legacyResult.value).filter(
+          (recipe) => getRecipeVisibility(recipe) !== "private",
+        )
+      : []),
+  ];
+
+  return recipes;
+}
+
 function recipeHref(recipeId: string) {
   return `/recipes/${recipeId}`;
 }
@@ -496,23 +528,21 @@ export async function fetchRecipes(input?: FetchRecipesInput) {
   const friendIds = Array.from(new Set(input.friendIds ?? [])).filter(
     (friendId) => friendId !== input.userId,
   );
-  const snapshots = await Promise.all([
+  const [ownSnapshot, collaboratorSnapshot, publicSnapshot, friendRecipeGroups] =
+    await Promise.all([
     getDocs(query(recipesCollection, where("createdBy", "==", input.userId))),
     getDocs(query(recipesCollection, where("collaboratorIds", "array-contains", input.userId))),
     getDocs(query(recipesCollection, where("visibility", "==", "public"))),
-    ...friendIds.map((friendId) =>
-      getDocs(
-        query(
-          recipesCollection,
-          where("createdBy", "==", friendId),
-          where("visibility", "in", ["friends", "public"]),
-        ),
-      ),
-    ),
+    Promise.all(friendIds.map((friendId) => fetchRecipesForFriend(recipesCollection, friendId))),
   ]);
   const recipesById = new Map<string, Recipe>();
 
-  for (const recipe of snapshots.flatMap(recipesFromSnapshot)) {
+  for (const recipe of [
+    ...recipesFromSnapshot(ownSnapshot),
+    ...recipesFromSnapshot(collaboratorSnapshot),
+    ...recipesFromSnapshot(publicSnapshot),
+    ...friendRecipeGroups.flat(),
+  ]) {
     recipesById.set(recipe.id, recipe);
   }
 
